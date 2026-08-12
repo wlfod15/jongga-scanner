@@ -12,6 +12,7 @@ import streamlit as st
 from global_price import after_hours_snapshot, load_product_map, nxt_delayed_quotes, usdkrw_quote
 from market_sources import naver_investor_flow
 from market_ui import extract_close, impact_groups, last_metrics, legacy_market_score, market_table
+from night_futures import kospi200_night_quote
 
 try:
     from pykrx import stock as krx_stock
@@ -408,6 +409,14 @@ def current_nxt_quotes():
     return nxt_delayed_quotes()
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def current_kospi200_night():
+    try:
+        return kospi200_night_quote()
+    except Exception:
+        return None
+
+
 def enrich_after_hours(row):
     values = after_hours_snapshot(row["종목코드"], row["종가"], overseas_product_map(),
                                   current_fx_quote(), current_nxt_quotes())
@@ -611,10 +620,20 @@ def show_simple_prediction(row):
         if pd.notna(low) and pd.notna(high):
             row = {**row, open_key: (float(low) + float(high)) / 2}
 
+    night = current_kospi200_night() if str(row.get("시장", "")).upper().startswith("KOSPI") else None
+    if night and prediction_ok and pd.notna(row.get(open_key, np.nan)):
+        row = {**row, open_key: float(row[open_key]) + float(night["변동률%"])}
+
     c1, c2 = st.columns(2)
     c1.metric("예상 시가", predicted_price(open_key), direction_delta(open_key))
     c2.metric("예상 종가", predicted_price("익일평균%"), direction_delta("익일평균%"))
     st.caption(f"오늘 종가 {entry:,.0f}원 대비")
+    if night:
+        direction = "▲" if night["변동률%"] > 0 else "▼" if night["변동률%"] < 0 else "-"
+        st.caption(
+            f"코스피200 야간선물 {direction} {night['변동률%']:+.2f}%를 예상 시가에 반영 · "
+            f"거래량 {night['거래량']:,} · {night['조회시각']} · {night['출처']}"
+        )
     c1, c2 = st.columns(2)
     c1.metric("익일 상승 확률", probability("익일승률%"))
     c2.metric("갭상승 확률", probability("갭상승확률%"))
