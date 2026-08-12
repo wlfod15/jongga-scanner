@@ -13,6 +13,7 @@ from global_price import after_hours_snapshot, load_product_map, nxt_delayed_quo
 from market_sources import naver_investor_flow
 from market_ui import extract_close, impact_groups, last_metrics, legacy_market_score, market_table
 from night_futures import kospi200_night_quote
+from rebound_pattern import analyze_rebound_pattern, normalize_intraday, pattern_filter_mask
 
 try:
     from pykrx import stock as krx_stock
@@ -177,6 +178,24 @@ def benchmark(market, start):
         return pd.Series(dtype=float)
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def hourly_prices(symbol, market):
+    if not YF_OK:
+        return pd.DataFrame()
+    suffix = ".KS" if str(market).upper().startswith("KOSPI") else ".KQ"
+    try:
+        raw = yf.download(f"{str(symbol).zfill(6)}{suffix}", period="2y", interval="60m",
+                          auto_adjust=False, progress=False, threads=False)
+        return normalize_intraday(raw)
+    except Exception:
+        return pd.DataFrame()
+
+
+def rebound_snapshot(symbol, market, approach_pct):
+    frame = hourly_prices(symbol, market)
+    return analyze_rebound_pattern(frame, approach_pct=approach_pct), frame
+
+
 def row_features(df, market_ret, i, p):
     r, prev = df.iloc[i], df.iloc[i - 1]
     close = float(r["Close"])
@@ -328,6 +347,9 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
                "거래량배수": round(f["vr"], 2), "종가위치%": round(f["close_pos"], 1), "윗꼬리%": round(f["wick"], 1),
                "시장대비강도%p": round(f["rel"], 2), "OBV": "충족" if f["obv"] else "미충족", "CVD Proxy": "충족" if f["cvd"] else "미충족"}
         out.update(bt); out.update(levels)
+        pattern, _ = rebound_snapshot(symbol, market, p.get("pattern_approach_pct", 3.0))
+        out.update(pattern)
+        out["패턴 접근범위%"] = p.get("pattern_approach_pct", 3.0)
         out["최종순위점수"] = ranking_score(f["score"], market_score, sector_score, bt, levels["1차손익비R"])
         return out
     except Exception:
@@ -490,6 +512,24 @@ def chart(symbol, row):
     return fig
 
 
+def rebound_chart(symbol, row):
+    pattern, raw = rebound_snapshot(symbol, row.get("시장", "KOSPI"), row.get("패턴 접근범위%", 3.0))
+    if raw.empty or pattern.get("추정 패턴 상태") != "산출":
+        return None
+    view = raw.tail(180)
+    fig = go.Figure(go.Candlestick(x=view.index, open=view.Open, high=view.High, low=view.Low,
+                                   close=view.Close, name="60분봉"))
+    for label, key, color in (("반등 기준", "추정 반등가", "#ff1493"),
+                              ("+33%", "+33% 가격", "#ff69b4"),
+                              ("+50%", "+50% 가격", "#8e44ad"),
+                              ("+100%", "+100% 가격", "#2f6fed")):
+        price = float(pattern[key])
+        fig.add_hline(y=price, line_color=color, line_width=2,
+                      annotation_text=f"{label} {price:,.0f}원", annotation_position="top right")
+    fig.update_layout(height=620, xaxis_rangeslider_visible=False, margin=dict(l=20, r=20, t=30, b=20))
+    return fig
+
+
 def show_detail(row):
     st.subheader(f"{row['종목명']} ({row['종목코드']}) 핵심 요약")
     with st.spinner("수급·공매도 데이터 확인 중..."):
@@ -587,6 +627,18 @@ def show_detail(row):
         st.info("공매도 거래·잔고는 KRX 공개 통계이며 특정 투자자의 개별 포지션을 뜻하지 않습니다. 잔고 데이터는 공표 시차가 있을 수 있습니다.")
         try: st.plotly_chart(chart(row["종목코드"], row), use_container_width=True)
         except Exception as exc: st.warning(f"차트를 불러오지 못했습니다: {exc}")
+        st.markdown("#### 60분봉 추정 반등 패턴")
+        try:
+            pattern_fig = rebound_chart(row["종목코드"], row)
+            if pattern_fig is None:
+                st.info("60분봉 표본이 부족하거나 의미 있는 스윙을 찾지 못했습니다.")
+            else:
+                pattern_keys = ["추정 패턴 점수", "기준 스윙 고점", "기준 스윙 저점", "기준가 결정시간",
+                                "고점-50% 대응오차%", "현재 패턴 단계", "다음 목표가", "다음 목표까지(%)"]
+                st.dataframe(pd.DataFrame([{k: row.get(k) for k in pattern_keys}]), use_container_width=True, hide_index=True)
+                st.plotly_chart(pattern_fig, use_container_width=True)
+        except Exception as exc:
+            st.warning(f"60분봉 추정 패턴을 불러오지 못했습니다: {exc}")
 
 
 def show_simple_prediction(row):
@@ -691,10 +743,15 @@ with st.sidebar:
     prediction_horizon = st.select_slider("+3% 도달 관찰기간(거래일)", [1, 3, 5, 10], value=5)
     min_prediction_samples = st.slider("예측 최소 유사표본 수", 10, 50, 20, 5)
     workers = st.slider("동시 조회 수", 2, 10, 5)
+    pattern_approach_pct = st.slider("추정 패턴 접근 범위(%)", 1.0, 10.0, 3.0, .5)
+    pattern_filter = st.selectbox("추정 패턴 필터", ["전체", "반등가 ±3% 종목", "반등가 상향 돌파 종목",
+        "+33%선 돌파 종목", "+50%선 돌파 종목", "다음 목표가까지 상승여력 10% 이상",
+        "거래량 증가 + 반등선 돌파", "거래량 증가 + 33%선 돌파"])
 
 p = {"min_value": min_value * 1e8, "min_price": min_price, "min_vr": min_vr, "rsi_lo": rlo, "rsi_hi": rhi,
      "close_pos": close_pos, "max_wick": max_wick, "min_rel": min_rel, "max_gap": max_gap, "min_score": min_score,
      "prediction_horizon": prediction_horizon, "min_prediction_samples": min_prediction_samples}
+p["pattern_approach_pct"] = pattern_approach_pct
 
 with st.spinner("시장환경 확인 중..."):
     market_score, market_label, market_data, market_reasons = market_environment()
@@ -807,6 +864,7 @@ if st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_con
 
 if "scanner_v5_all" in st.session_state:
     R = st.session_state["scanner_v5_all"]
+    R = R[pattern_filter_mask(R, pattern_filter, pattern_approach_pct)]
     buys = R[R["판정"] == "매수후보"].head(5)
     near = R[R["판정"] != "매수후보"].sort_values(["최종순위점수", "종합점수"], ascending=False).head(5)
     st.subheader("오늘의 최종 매수후보 TOP5")
@@ -818,7 +876,11 @@ if "scanner_v5_all" in st.session_state:
     st.subheader("업종별 / 전체 후보표")
     sector_choice = st.selectbox("업종 보기", ["전체", "반도체", "성장·기술", "에너지", "항공·운송", "일반"])
     view = R if sector_choice == "전체" else R[R["업종분류"] == sector_choice]
-    st.dataframe(scanner_table(view), use_container_width=True, hide_index=True)
+    pattern_columns = ["추정 반등가", "반등가 거리(%)", "현재 패턴 단계", "다음 목표가", "다음 목표까지(%)"]
+    leading = [c for c in ["종목코드", "종목명", "종가", "판정"] if c in view.columns]
+    display_columns = leading + [c for c in pattern_columns if c in view.columns]
+    remaining = [c for c in view.columns if c not in display_columns]
+    st.dataframe(scanner_table(view[display_columns + remaining]), use_container_width=True, hide_index=True)
     if len(view):
         labels = [f"{r['종목명']} ({r['종목코드']}) · {r['판정']}" for _, r in view.iterrows()]
         chosen = st.selectbox("상세 차트 종목 선택", labels)
