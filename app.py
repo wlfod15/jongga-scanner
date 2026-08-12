@@ -592,6 +592,18 @@ def show_simple_prediction(row):
             return "표본 부족"
         return f"{entry * (1 + float(value) / 100):,.0f}원"
 
+    def direction_delta(key):
+        value = row.get(key, np.nan)
+        if not prediction_ok or pd.isna(value):
+            return None
+        value = float(value)
+        direction = "상승" if value > 0 else "하락" if value < 0 else "보합"
+        return f"{value:+.2f}% · {direction}"
+
+    def probability(key):
+        value = row.get(key, np.nan)
+        return "표본 부족" if not prediction_ok or pd.isna(value) else f"{float(value):.0f}%"
+
     open_key = "예상시가평균%"
     if pd.isna(row.get(open_key, np.nan)) and prediction_ok:
         low = row.get("예상시가하단%", np.nan)
@@ -600,8 +612,12 @@ def show_simple_prediction(row):
             row = {**row, open_key: (float(low) + float(high)) / 2}
 
     c1, c2 = st.columns(2)
-    c1.metric("예상 시가", predicted_price(open_key))
-    c2.metric("예상 종가", predicted_price("익일평균%"))
+    c1.metric("예상 시가", predicted_price(open_key), direction_delta(open_key))
+    c2.metric("예상 종가", predicted_price("익일평균%"), direction_delta("익일평균%"))
+    st.caption(f"오늘 종가 {entry:,.0f}원 대비")
+    c1, c2 = st.columns(2)
+    c1.metric("익일 상승 확률", probability("익일승률%"))
+    c2.metric("갭상승 확률", probability("갭상승확률%"))
     st.caption("과거 유사조건과 ATR14를 결합한 통계적 예상 중심값이며 실제 가격을 보장하지 않습니다.")
     if st.button("자세히 보기", use_container_width=True):
         with st.spinner("상세 데이터 불러오는 중..."):
