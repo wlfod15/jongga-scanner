@@ -690,6 +690,21 @@ def show_simple_prediction(row):
     c1.metric("익일 상승 확률", probability("익일승률%"))
     c2.metric("갭상승 확률", probability("갭상승확률%"))
     st.caption("과거 유사조건과 ATR14를 결합한 통계적 예상 중심값이며 실제 가격을 보장하지 않습니다.")
+
+    st.markdown("#### 60분봉 추정 패턴")
+    pattern_ok = row.get("추정 패턴 상태") == "산출"
+    rebound = row.get("추정 반등가", np.nan)
+    next_target = row.get("다음 목표가", np.nan)
+    rebound_text = f"{float(rebound):,.0f}원" if pattern_ok and pd.notna(rebound) else "표본 부족"
+    target_text = f"{float(next_target):,.0f}원" if pattern_ok and pd.notna(next_target) else "표본 부족"
+    stage_text = row.get("현재 패턴 단계", "표본 부족") if pattern_ok else row.get("추정 패턴 상태", "표본 부족")
+    rebound_delta = f"{float(row['반등가 거리(%)']):+.1f}%" if pattern_ok and pd.notna(row.get("반등가 거리(%)", np.nan)) else None
+    target_delta = f"{float(row['다음 목표까지(%)']):+.1f}%" if pattern_ok and pd.notna(row.get("다음 목표까지(%)", np.nan)) else None
+    c1, c2, c3 = st.columns(3)
+    c1.metric("추정 반등가", rebound_text, rebound_delta)
+    c2.metric("현재 패턴 단계", stage_text)
+    c3.metric("다음 목표가", target_text, target_delta)
+    st.caption("검증 중인 독립 가설이며 기존 종가매매 추천 점수에는 반영되지 않습니다.")
     if st.button("자세히 보기", use_container_width=True):
         with st.spinner("상세 데이터 불러오는 중..."):
             st.session_state["scanner_v5_selected"] = enrich_after_hours(dict(row))
