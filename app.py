@@ -10,6 +10,7 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 from global_price import after_hours_snapshot, load_product_map, nxt_delayed_quotes, usdkrw_quote
+from market_sources import naver_investor_flow
 from market_ui import extract_close, impact_groups, last_metrics, legacy_market_score, market_table
 
 try:
@@ -421,39 +422,49 @@ def _date_range(days=25):
 @st.cache_data(ttl=1800, show_spinner=False)
 def flow_and_short(symbol):
     summary, flow, short = {}, pd.DataFrame(), pd.DataFrame()
-    if not PYKRX_OK: return summary, flow, short
     start, end = _date_range()
-    try:
-        d = krx_stock.get_market_trading_value_by_date(start, end, symbol)
-        if d is not None and len(d):
-            flow = d.copy()
-            foreign_col = next((c for c in d.columns if "외국인" in str(c)), None)
-            inst_cols = [c for c in d.columns if any(k in str(c) for k in ("금융투자", "보험", "투신", "사모", "은행", "연기금", "기타금융"))]
-            if foreign_col:
-                summary["외국인5일순매수(억원)"] = round(d[foreign_col].tail(5).sum() / 1e8, 1)
-            if inst_cols:
-                summary["기관5일순매수(억원)"] = round(d[inst_cols].tail(5).sum().sum() / 1e8, 1)
-    except Exception:
-        pass
-    try:
-        s = krx_stock.get_shorting_volume_by_date(start, end, symbol)
-        if s is not None and len(s):
-            short = s.copy()
-            ratio_col = next((c for c in s.columns if "비중" in str(c)), None)
-            vol_col = next((c for c in s.columns if str(c) in ("공매도", "공매도거래량") or ("공매도" in str(c) and "거래량" in str(c))), None)
-            if ratio_col: summary["최근공매도비중%"] = round(float(s[ratio_col].iloc[-1]), 2)
-            if vol_col: summary["공매도5일거래량"] = int(s[vol_col].tail(5).sum())
-    except Exception:
-        pass
-    try:
-        b = krx_stock.get_shorting_balance_by_date(start, end, symbol)
-        if b is not None and len(b):
-            ratio_col = next((c for c in b.columns if "비중" in str(c)), None)
-            value_col = next((c for c in b.columns if str(c) in ("공매도금액", "공매도잔고금액") or ("잔고" in str(c) and "금액" in str(c))), None)
-            if ratio_col: summary["공매도잔고비중%"] = round(float(b[ratio_col].iloc[-1]), 2)
-            if value_col: summary["공매도잔고(억원)"] = round(float(b[value_col].iloc[-1]) / 1e8, 1)
-    except Exception:
-        pass
+    if PYKRX_OK:
+        try:
+            d = krx_stock.get_market_trading_value_by_date(start, end, symbol)
+            if d is not None and len(d):
+                flow = d.copy()
+                foreign_col = next((c for c in d.columns if "외국인" in str(c)), None)
+                inst_cols = [c for c in d.columns if any(k in str(c) for k in ("금융투자", "보험", "투신", "사모", "은행", "연기금", "기타금융"))]
+                if foreign_col:
+                    summary["외국인5일순매수(억원)"] = round(d[foreign_col].tail(5).sum() / 1e8, 1)
+                if inst_cols:
+                    summary["기관5일순매수(억원)"] = round(d[inst_cols].tail(5).sum().sum() / 1e8, 1)
+                summary["수급출처"] = "KRX(pykrx)"
+        except Exception:
+            pass
+        try:
+            s = krx_stock.get_shorting_volume_by_date(start, end, symbol)
+            if s is not None and len(s):
+                short = s.copy()
+                ratio_col = next((c for c in s.columns if "비중" in str(c)), None)
+                vol_col = next((c for c in s.columns if str(c) in ("공매도", "공매도거래량") or ("공매도" in str(c) and "거래량" in str(c))), None)
+                if ratio_col: summary["최근공매도비중%"] = round(float(s[ratio_col].iloc[-1]), 2)
+                if vol_col: summary["공매도5일거래량"] = int(s[vol_col].tail(5).sum())
+        except Exception:
+            pass
+        try:
+            b = krx_stock.get_shorting_balance_by_date(start, end, symbol)
+            if b is not None and len(b):
+                ratio_col = next((c for c in b.columns if "비중" in str(c)), None)
+                value_col = next((c for c in b.columns if str(c) in ("공매도금액", "공매도잔고금액") or ("잔고" in str(c) and "금액" in str(c))), None)
+                if ratio_col: summary["공매도잔고비중%"] = round(float(b[ratio_col].iloc[-1]), 2)
+                if value_col: summary["공매도잔고(억원)"] = round(float(b[value_col].iloc[-1]) / 1e8, 1)
+        except Exception:
+            pass
+    if "외국인5일순매수(억원)" not in summary:
+        try:
+            fallback_summary, fallback_flow = naver_investor_flow(symbol)
+            summary.update(fallback_summary)
+            if len(fallback_flow):
+                flow = fallback_flow
+        except Exception:
+            pass
+    summary["공매도출처"] = "KRX 공개 통계" if any("공매도" in key and key != "공매도출처" for key in summary) else "KRX 응답 없음"
     return summary, flow, short
 
 
@@ -478,7 +489,7 @@ def show_detail(row):
     foreign = summary.get("외국인5일순매수(억원)", np.nan)
     foreign_text = "조회 불가" if pd.isna(foreign) else f"{foreign:+,.1f}억원"
     short_ratio = summary.get("공매도잔고비중%", summary.get("최근공매도비중%", np.nan))
-    short_text = "조회 불가" if pd.isna(short_ratio) else f"{short_ratio:.2f}%"
+    short_text = "KRX 연결 필요" if pd.isna(short_ratio) else f"{short_ratio:.2f}%"
     sample_n = int(row.get("표본수", 0) or 0)
     prediction_ok = row.get("예측상태") == "산출"
     entry = float(row["진입가"])
@@ -560,7 +571,7 @@ def show_detail(row):
         if len(flow):
             st.markdown("#### 외국인·기관 일별 순매수/순매도")
             st.dataframe((flow / 1e8).round(2).rename_axis("날짜"), use_container_width=True)
-            st.caption("단위: 억원. 양수는 순매수, 음수는 순매도입니다.")
+            st.caption(f"단위: 억원. 양수는 순매수, 음수는 순매도입니다. 출처: {summary.get('수급출처', 'KRX')}")
         if len(short):
             st.markdown("#### 일별 공매도 거래")
             st.dataframe(short.rename_axis("날짜"), use_container_width=True)
