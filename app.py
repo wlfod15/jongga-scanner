@@ -366,6 +366,40 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
         return None
 
 
+def validate_at_date(symbol, selected_date, market, p, lookback_days):
+    """Recreate a forecast using data available at the selected close only."""
+    start = (selected_date - timedelta(days=max(lookback_days * 2, 730))).isoformat()
+    end = (selected_date + timedelta(days=14)).isoformat()
+    raw = fdr.DataReader(symbol, start, end)
+    full = prep(raw)
+    if full.empty:
+        return None
+    eligible = full.index[pd.to_datetime(full.index).date <= selected_date]
+    if not len(eligible):
+        return None
+    base_date = eligible[-1]
+    base_pos = full.index.get_loc(base_date)
+    if base_pos + 1 >= len(full):
+        return {"상태": "실제 종가 대기", "기준일": pd.Timestamp(base_date).date()}
+    history = full.iloc[:base_pos + 1].copy()
+    market_history = benchmark(market, start).reindex(history.index)
+    stop_pct = trade_levels(history)["손절률%"]
+    prediction = similar_prediction(history, market_history, p["prediction_horizon"],
+                                    p["min_prediction_samples"], stop_pct)
+    actual_date = full.index[base_pos + 1]
+    actual_close = float(full["Close"].iloc[base_pos + 1])
+    if prediction.get("예측상태") != "산출":
+        return {"상태": "표본 부족", "기준일": pd.Timestamp(base_date).date(),
+                "실제일": pd.Timestamp(actual_date).date(), "실제 종가": actual_close,
+                "표본수": prediction.get("표본수", 0)}
+    predicted = float(history["Close"].iloc[-1]) * (1 + float(prediction["익일평균%"]) / 100)
+    difference = actual_close - predicted
+    return {"상태": "산출", "기준일": pd.Timestamp(base_date).date(),
+            "실제일": pd.Timestamp(actual_date).date(), "예측가": predicted,
+            "실제 종가": actual_close, "차이": difference,
+            "차이율%": difference / predicted * 100, "상세": prediction}
+
+
 # ── 종목 목록, 수급, 공매도 ─────────────────────────────────────────
 @st.cache_data(ttl=3600, show_spinner=False)
 def listings():
@@ -611,24 +645,59 @@ st.caption("최종순위점수는 종목 45%·시장 15%·업종 10%·과거 5�
 
 L = listings()
 st.subheader("직접 종목검색")
-query = st.text_input("종목명 또는 6자리 코드", placeholder="예: 삼성전자 또는 005930")
+search_mode = st.radio("조회 방식", ["오늘 예측", "과거 날짜 검증"], horizontal=True)
+selected_validation_date = None
+if search_mode == "과거 날짜 검증":
+    selected_validation_date = st.date_input(
+        "기준 날짜", value=date.today() - timedelta(days=1),
+        min_value=date.today() - timedelta(days=730), max_value=date.today() - timedelta(days=1),
+        help="선택한 날의 종가까지 알려졌다고 가정해 다음 거래일 종가를 예측합니다.")
+
+search_col, button_col = st.columns([4, 1])
+with search_col:
+    query = st.text_input("종목명 직접 입력", placeholder="여기에 원하는 종목명을 입력하세요")
+with button_col:
+    st.write("")
+    move_clicked = st.button("이 종목으로 이동하기", type="primary", use_container_width=True)
 matches = pd.DataFrame()
 if query and len(L):
     matches = L[L["Name"].astype(str).str.contains(query, case=False, na=False, regex=False) | L["Code"].str.contains(query, regex=False)].head(30)
-if len(matches):
-    labels = [f"{r.Name} ({r.Code})" for _, r in matches.iterrows()]
-    selected_search = st.selectbox("검색 결과", labels)
-    if st.button("이 종목 분석", type="primary"):
-        r = matches.iloc[labels.index(selected_search)]
-        mkt = str(r.get("Market", "KOSPI")); sec = str(r.get("Sector", r.get("Industry", "")))
+if move_clicked and len(matches):
+    exact = matches[(matches["Name"].astype(str).str.lower() == query.strip().lower()) | (matches["Code"] == query.strip())]
+    r = exact.iloc[0] if len(exact) else matches.iloc[0]
+    mkt = str(r.get("Market", "KOSPI")); sec = str(r.get("Sector", r.get("Industry", "")))
+    if search_mode == "과거 날짜 검증":
+        with st.spinner("선택한 날짜 기준으로 검증 중..."):
+            validation = validate_at_date(r.Code, selected_validation_date, mkt, p, lookback)
+        st.session_state["scanner_v5_validation"] = {"종목명": r.Name, "종목코드": r.Code, "결과": validation}
+    else:
         with st.spinner("종목 분석 중..."):
             result = analyze(r.Code, r.Name, mkt, sec, (date.today() - timedelta(days=lookback)).isoformat(), p, do_bt, market_score, market_data)
         if result: st.session_state["scanner_v5_selected"] = enrich_after_hours(result)
         else: st.error("분석에 필요한 가격 데이터가 부족합니다.")
-elif query:
+elif move_clicked and query:
     st.warning("일치하는 KRX 종목이 없습니다.")
 
-if st.button("오늘 종가매매 후보 스캔 v5", type="primary", use_container_width=True):
+if "scanner_v5_validation" in st.session_state and search_mode == "과거 날짜 검증":
+    validation_item = st.session_state["scanner_v5_validation"]
+    validation = validation_item["결과"]
+    st.markdown(f"#### {validation_item['종목명']} ({validation_item['종목코드']}) 과거 예측 검증")
+    if not validation:
+        st.warning("선택한 날짜의 가격 데이터를 확인할 수 없습니다.")
+    elif validation["상태"] == "표본 부족":
+        st.warning(f"표본 부족 · 유사 표본 {validation.get('표본수', 0)}회")
+    elif validation["상태"] == "실제 종가 대기":
+        st.info("다음 거래일 실제 종가가 아직 없어 검증할 수 없습니다.")
+    else:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("예측가", f"{validation['예측가']:,.0f}원")
+        c2.metric("실제 종가", f"{validation['실제 종가']:,.0f}원")
+        c3.metric("실제 종가와의 차이", f"{validation['차이']:+,.0f}원", f"{validation['차이율%']:+.2f}%")
+        st.caption(f"기준일 {validation['기준일']} → 실제 종가일 {validation['실제일']} · 예측가는 당시 데이터만 사용한 예상 종가 중심값입니다.")
+        with st.expander("상세 검증 데이터"):
+            st.json(validation["상세"])
+
+if st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_container_width=True):
     scan = L.copy()
     if market_filter != "전체" and "Market" in scan.columns: scan = scan[scan["Market"].astype(str).str.upper().str.startswith(market_filter)]
     cap = next((c for c in ("Marcap", "MarketCap") if c in scan.columns), None)
