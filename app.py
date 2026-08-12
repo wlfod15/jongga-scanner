@@ -9,6 +9,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
+from global_price import after_hours_snapshot, load_product_map, nxt_delayed_quotes, usdkrw_quote
+
 try:
     from pykrx import stock as krx_stock
     PYKRX_OK = True
@@ -23,6 +25,30 @@ except Exception:
 
 
 st.set_page_config(page_title="KRX 종가매매 스캐너 v5", layout="wide")
+st.markdown("""
+<style>
+html, body, [data-testid="stAppViewContainer"] { background: #f6f8fb; }
+.block-container { max-width: 1120px; }
+/* Metric text must wrap instead of being clipped on narrow phone screens. */
+[data-testid="stMetric"] {
+  min-width: 0; background: #fff; border: 1px solid #e7eaf0;
+  border-radius: 1rem; padding: 1rem 1.1rem; box-shadow: 0 2px 10px rgba(25,35,55,.035);
+}
+[data-testid="stMetricLabel"] p { white-space: normal; line-height: 1.25; }
+[data-testid="stMetricValue"] { font-size: clamp(1.25rem, 4.5vw, 2.35rem); }
+[data-testid="stMetricValue"] > div { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
+[data-testid="stMetricDelta"] { font-size: clamp(.78rem, 2.8vw, 1rem); }
+@media (max-width: 640px) {
+  .block-container { padding: 1rem .75rem 3rem; }
+  h1 { font-size: 1.75rem !important; line-height: 1.2 !important; }
+  h2, h3 { font-size: 1.25rem !important; line-height: 1.3 !important; }
+  [data-testid="stHorizontalBlock"] { flex-wrap: wrap; gap: .65rem; }
+  [data-testid="column"] { flex: 1 1 100% !important; min-width: 0 !important; }
+  [data-testid="stMetric"] { padding: .85rem 1rem; border-radius: .85rem; }
+  [data-testid="stDataFrame"] { font-size: .78rem; }
+}
+</style>
+""", unsafe_allow_html=True)
 st.title("KRX 종가매매 종목 스캐너 v5")
 st.caption("시장·업종·수급·공매도·기술 신호와 과거 동일신호 통계를 한 화면에서 확인합니다.")
 
@@ -56,6 +82,15 @@ def prep(df):
     x["RET1"] = x["Close"].pct_change() * 100
     x["CLOSE_POS"] = ((x["Close"] - x["Low"]) / spread * 100).fillna(50).clip(0, 100)
     x["UPPER_WICK"] = ((x["High"] - np.maximum(x["Open"], x["Close"])) / spread * 100).fillna(0).clip(0, 100)
+    prev_close = x["Close"].shift(1)
+    true_range = pd.concat([(x["High"] - x["Low"]), (x["High"] - prev_close).abs(),
+                            (x["Low"] - prev_close).abs()], axis=1).max(axis=1)
+    x["ATR14"] = true_range.rolling(14).mean()
+    x["ATR_PCT"] = x["ATR14"] / x["Close"] * 100
+    x["VOL_RATIO"] = x["Volume"] / x["VOL20"]
+    x["MA20_GAP"] = (x["Close"] / x["MA20"] - 1) * 100
+    x["OBV_SLOPE"] = x["OBV"].diff(5) / x["Volume"].rolling(20).mean().replace(0, np.nan)
+    x["CVDP_SLOPE"] = x["CVDP"].diff(5) / x["Volume"].rolling(20).mean().replace(0, np.nan)
     return x
 
 
@@ -221,26 +256,79 @@ def trade_levels(df):
             "1차손익비R": round(entry * .10 / risk, 2), "2차손익비R": round(entry * .20 / risk, 2)}
 
 
-def backtest(df, market_ret, p):
-    samples = []
-    for i in range(65, len(df) - 10):
-        try:
-            f = row_features(df, market_ret, i, p)
-            if f["hard"] and f["score"] >= p["min_score"]:
-                entry, future = float(df["Close"].iloc[i]), df.iloc[i + 1:i + 11]
-                samples.append(((df["Close"].iloc[i + 1] / entry - 1) * 100,
-                                (df["Close"].iloc[i + 5] / entry - 1) * 100,
-                                (future["High"].max() / entry - 1) * 100,
-                                (future["Low"].min() / entry - 1) * 100))
-        except Exception:
-            continue
-    if not samples: return {"표본수": 0, "익일승률%": np.nan, "익일평균%": np.nan, "익일표준편차%": np.nan,
-                            "5일승률%": np.nan, "5일평균%": np.nan, "10일내+3%도달%": np.nan, "평균MAE%": np.nan}
-    x = np.asarray(samples)
-    return {"표본수": len(x), "익일승률%": round((x[:, 0] > 0).mean() * 100, 1), "익일평균%": round(x[:, 0].mean(), 2),
-            "익일표준편차%": round(x[:, 0].std(ddof=1), 2) if len(x) > 1 else np.nan,
-            "5일승률%": round((x[:, 1] > 0).mean() * 100, 1), "5일평균%": round(x[:, 1].mean(), 2),
-            "10일내+3%도달%": round((x[:, 2] >= 3).mean() * 100, 1), "평균MAE%": round(x[:, 3].mean(), 2)}
+PREDICTION_FEATURES = ["RSI", "CLOSE_POS", "UPPER_WICK", "VOL_RATIO", "MA20_GAP",
+                       "ATR_PCT", "OBV_SLOPE", "CVDP_SLOPE", "RET1", "MKT_RET1", "MKT_RET5"]
+
+
+def _weighted_rate(values, weights, condition):
+    mask = condition(np.asarray(values, dtype=float))
+    return float(np.average(mask.astype(float), weights=weights) * 100)
+
+
+def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0):
+    """Use only information known at each signal date; future rows are labels only."""
+    base = df.copy()
+    aligned = market_ret.reindex(base.index).fillna(0)
+    base["MKT_RET1"] = aligned
+    base["MKT_RET5"] = aligned.rolling(5).sum()
+    current = base.iloc[-1]
+    candidates = base.iloc[65:-(horizon + 1)].dropna(subset=PREDICTION_FEATURES).copy()
+    if current[PREDICTION_FEATURES].isna().any() or len(candidates) < min_samples:
+        return {"표본수": len(candidates), "예측상태": "표본 부족", "신뢰도": "표본 부족"}
+
+    # Scale using the historical candidate pool only. The latest observation never
+    # changes historical feature values, preventing look-ahead leakage.
+    hist = candidates[PREDICTION_FEATURES].astype(float)
+    center = hist.median()
+    scale = (hist.quantile(.75) - hist.quantile(.25)).replace(0, np.nan)
+    scale = scale.fillna(hist.std()).replace(0, 1).fillna(1)
+    distance = (((hist - current[PREDICTION_FEATURES].astype(float)) / scale) ** 2).mean(axis=1) ** .5
+    take = min(max(min_samples, int(len(distance) * .15)), 80)
+    chosen = distance.nsmallest(take)
+    if len(chosen) < min_samples:
+        return {"표본수": len(chosen), "예측상태": "표본 부족", "신뢰도": "표본 부족"}
+
+    outcomes = []
+    for idx, dist in chosen.items():
+        pos = base.index.get_loc(idx)
+        entry = float(base["Close"].iloc[pos])
+        nxt = base.iloc[pos + 1]
+        future = base.iloc[pos + 1:pos + horizon + 1]
+        outcomes.append({
+            "distance": float(dist),
+            "open": (float(nxt["Open"]) / entry - 1) * 100,
+            "close": (float(nxt["Close"]) / entry - 1) * 100,
+            "high": (float(nxt["High"]) / entry - 1) * 100,
+            "low": (float(nxt["Low"]) / entry - 1) * 100,
+            "horizon_close": (float(future["Close"].iloc[-1]) / entry - 1) * 100,
+            "max_high": (float(future["High"].max()) / entry - 1) * 100,
+            "min_low": (float(future["Low"].min()) / entry - 1) * 100,
+        })
+    out = pd.DataFrame(outcomes)
+    weights = 1 / (out["distance"].to_numpy() + .15)
+    weights /= weights.sum()
+    q = lambda col, pct: float(out[col].quantile(pct))
+    atr_pct = float(current["ATR_PCT"])
+    open_low, open_high = min(q("open", .20), -atr_pct * .20), max(q("open", .80), atr_pct * .20)
+    close_low, close_high = min(q("close", .20), -atr_pct * .45), max(q("close", .80), atr_pct * .45)
+    expected_high, expected_low = max(q("high", .50), atr_pct * .55), min(q("low", .50), -atr_pct * .55)
+    confidence = "높음" if len(out) >= 60 and out["distance"].median() <= 1.0 else "보통" if len(out) >= 35 else "낮음"
+    return {
+        "표본수": len(out), "예측상태": "산출", "신뢰도": confidence,
+        "유사도중앙거리": round(float(out["distance"].median()), 2),
+        "익일승률%": round(_weighted_rate(out["close"], weights, lambda x: x > 0), 1),
+        "갭상승확률%": round(_weighted_rate(out["open"], weights, lambda x: x > 0), 1),
+        f"{horizon}일내+3%도달%": round(_weighted_rate(out["max_high"], weights, lambda x: x >= 3), 1),
+        "초기손절도달확률%": round(_weighted_rate(out["min_low"], weights, lambda x: x <= -abs(stop_pct)), 1),
+        "예상시가하단%": round(open_low, 2), "예상시가상단%": round(open_high, 2),
+        "예상종가하단%": round(close_low, 2), "예상종가상단%": round(close_high, 2),
+        "예상고가%": round(expected_high, 2), "예상저가%": round(expected_low, 2),
+        "익일평균%": round(float(np.average(out["close"], weights=weights)), 2),
+        "익일표준편차%": round(float(out["close"].std(ddof=1)), 2),
+        f"{horizon}일승률%": round(_weighted_rate(out["horizon_close"], weights, lambda x: x > 0), 1),
+        f"{horizon}일평균%": round(float(np.average(out["horizon_close"], weights=weights)), 2),
+        "평균MAE%": round(float(np.average(out["min_low"], weights=weights)), 2),
+    }
 
 
 def ranking_score(stock_score, market_score, sector_score, bt, rr):
@@ -258,8 +346,10 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
         mr = benchmark(market, start)
         f = row_features(df, mr, -1, p)
         cat, sector_score = sector_environment(name, sector_text, market_score, market_data)
-        bt = backtest(df, mr, p) if do_bt else {"표본수": 0}
         levels = trade_levels(df)
+        bt = similar_prediction(df, mr, p["prediction_horizon"], p["min_prediction_samples"],
+                                levels["손절률%"] if do_bt else 3.0) if do_bt else {
+                                    "표본수": 0, "예측상태": "사용 안 함", "신뢰도": "-"}
         combined = round(.60 * f["score"] + .25 * market_score + .15 * sector_score, 1)
         decision = "매수후보" if f["hard"] and f["score"] >= p["min_score"] else "조건근접" if f["score"] >= p["min_score"] - 20 or len(f["failures"]) <= 3 else "제외"
         r = df.iloc[-1]
@@ -279,11 +369,41 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
 # ── 종목 목록, 수급, 공매도 ─────────────────────────────────────────
 @st.cache_data(ttl=3600, show_spinner=False)
 def listings():
-    x = fdr.StockListing("KRX").copy()
+    try:
+        x = fdr.StockListing("KRX").copy()
+    except Exception:
+        x = pd.DataFrame()
+    if x.empty and PYKRX_OK:
+        try:
+            tickers = krx_stock.get_market_ticker_list(market="ALL")
+            x = pd.DataFrame({"Code": tickers, "Name": [krx_stock.get_market_ticker_name(t) for t in tickers]})
+        except Exception:
+            x = pd.DataFrame(columns=["Code", "Name"])
     code_col = next((c for c in ("Code", "Symbol") if c in x.columns), None)
     if not code_col or "Name" not in x.columns: return pd.DataFrame()
     x[code_col] = x[code_col].astype(str).str.zfill(6)
     return x.rename(columns={code_col: "Code"})
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def overseas_product_map():
+    return load_product_map()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def current_fx_quote():
+    return usdkrw_quote()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def current_nxt_quotes():
+    return nxt_delayed_quotes()
+
+
+def enrich_after_hours(row):
+    values = after_hours_snapshot(row["종목코드"], row["종가"], overseas_product_map(),
+                                  current_fx_quote(), current_nxt_quotes())
+    return {**row, **values}
 
 
 def _date_range(days=25):
@@ -353,22 +473,22 @@ def show_detail(row):
     short_ratio = summary.get("공매도잔고비중%", summary.get("최근공매도비중%", np.nan))
     short_text = "조회 불가" if pd.isna(short_ratio) else f"{short_ratio:.2f}%"
     sample_n = int(row.get("표본수", 0) or 0)
-    next_win = row.get("익일승률%", np.nan)
-    next_avg = row.get("익일평균%", np.nan)
-    next_std = row.get("익일표준편차%", np.nan)
-    if sample_n >= 10 and pd.notna(next_win):
-        direction = "상승 우세" if next_win >= 55 else "하락 우세" if next_win <= 45 else "중립"
-        next_text = f"{direction} · 상승 {next_win:.0f}%"
-        expected = float(row["진입가"]) * (1 + float(next_avg) / 100)
-        if pd.notna(next_std):
-            low = float(row["진입가"]) * (1 + (float(next_avg) - float(next_std)) / 100)
-            high = float(row["진입가"]) * (1 + (float(next_avg) + float(next_std)) / 100)
-            price_text = f"중심 {expected:,.0f}원 · 범위 {low:,.0f}~{high:,.0f}원"
-        else:
-            price_text = f"중심 {expected:,.0f}원"
-    else:
-        next_text = "산출 불가"
-        price_text = f"표본 {sample_n}회 · 최소 10회 필요"
+    prediction_ok = row.get("예측상태") == "산출"
+    entry = float(row["진입가"])
+    horizon = next((int(k.split("일내")[0]) for k in row.keys() if "일내+3%도달%" in k), 5)
+    reach_key = f"{horizon}일내+3%도달%"
+
+    def pct_price(pct):
+        return entry * (1 + float(pct) / 100)
+
+    def price_range(low_key, high_key):
+        if not prediction_ok or pd.isna(row.get(low_key, np.nan)) or pd.isna(row.get(high_key, np.nan)):
+            return "표본 부족"
+        return f"{pct_price(row[low_key]):,.0f}~{pct_price(row[high_key]):,.0f}원"
+
+    def probability(key):
+        value = row.get(key, np.nan)
+        return "표본 부족" if not prediction_ok or pd.isna(value) else f"{float(value):.0f}%"
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("진입 추천 점수", f"{row['종합점수']:.1f}/100", row["판정"])
@@ -376,11 +496,44 @@ def show_detail(row):
     c3.metric("CVD Proxy", row.get("CVD Proxy", "-"))
     c4.metric("RSI(14)", f"{row.get('RSI14', np.nan):.1f}")
 
+    st.markdown("#### 익일 통계 예측")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("공매도 잔고/거래 비중", short_text)
-    c2.metric("외국인 5일 순매수", foreign_text)
-    c3.metric("익일 상승·하락 가능성", next_text)
-    c4.metric("익일 예상 가격", price_text)
+    c1.metric("익일 상승 확률", probability("익일승률%"))
+    c2.metric("갭상승 확률", probability("갭상승확률%"))
+    c3.metric(f"{horizon}일 내 +3%", probability(reach_key))
+    c4.metric("초기 손절 도달", probability("초기손절도달확률%"))
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("예상 시가 범위", price_range("예상시가하단%", "예상시가상단%"))
+    c2.metric("예상 종가 범위", price_range("예상종가하단%", "예상종가상단%"))
+    c3.metric("예상 고가", "표본 부족" if not prediction_ok else f"{pct_price(row['예상고가%']):,.0f}원")
+    c4.metric("예상 저가", "표본 부족" if not prediction_ok else f"{pct_price(row['예상저가%']):,.0f}원")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("유사 표본", f"{sample_n}회" if prediction_ok else "표본 부족")
+    c2.metric("예측 신뢰도", row.get("신뢰도", "표본 부족"))
+    c3.metric("외국인 5일", foreign_text)
+    c4.metric("공매도 비중", short_text)
+
+    st.markdown("#### 장후 가격 비교")
+    def won_value(key):
+        value = row.get(key, np.nan)
+        return "데이터 없음" if pd.isna(value) else f"{float(value):,.0f}원"
+
+    def pct_value(key):
+        value = row.get(key, np.nan)
+        return "데이터 없음" if pd.isna(value) else f"{float(value):+.2f}%"
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("KRX 종가", won_value("KRX 종가"))
+    c2.metric("NXT 현재가 (20분 지연)", won_value("NXT 현재가"))
+    c3.metric("해외 24h 환산가", won_value("해외24h 환산가"))
+    c1, c2, c3 = st.columns(3)
+    c1.metric("해외 괴리율", pct_value("해외 괴리율%"))
+    c2.metric("NXT 프리미엄", pct_value("NXT 프리미엄%"))
+    c3.metric("해외가격 판정", row.get("해외가격 신호", "데이터 없음"))
+    st.caption(f"해외상품 유형: {row.get('해외상품 유형', '매핑 없음')} · USD/KRW: {row.get('USD/KRW', np.nan):,.2f}" if pd.notna(row.get("USD/KRW", np.nan)) else
+               f"해외상품 유형: {row.get('해외상품 유형', '매핑 없음')} · USD/KRW 데이터 없음")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("진입가", f"{row['진입가']:,.0f}원")
@@ -388,11 +541,11 @@ def show_detail(row):
     c3.metric("1차 익절가", f"{row['1차익절(+10%)']:,.0f}원", "+10%")
     c4.metric("2차 익절가", f"{row['2차익절(+20%)']:,.0f}원", "+20%")
 
-    st.caption("익일 가능성과 예상 가격은 과거 동일조건 표본이 10회 이상일 때만 표시하는 통계적 참고값이며 실제 가격 예측이나 수익 보장이 아닙니다.")
+    st.info("예상가는 확정값이 아니라 과거 유사조건과 ATR14를 결합한 통계적 예상범위입니다. 미래 가격이나 수익을 보장하지 않습니다.")
 
     with st.expander("자세히 보기 — 탈락사유·전체 지표·차트·일별 수급"):
         st.write(f"**판정:** {row['판정']}  |  **탈락사유:** {row['탈락사유']}")
-        details = {k: row.get(k) for k in ["종목점수", "시장환경", "업종환경", "최종순위점수", "업종분류", "유형", "RSI14", "거래량배수", "종가위치%", "윗꼬리%", "시장대비강도%p", "OBV", "CVD Proxy", "표본수", "익일승률%", "익일평균%", "익일표준편차%", "5일승률%", "5일평균%", "10일내+3%도달%", "평균MAE%", "손절률%", "1차손익비R", "2차손익비R"]}
+        details = {k: row.get(k) for k in ["종목점수", "시장환경", "업종환경", "최종순위점수", "업종분류", "유형", "RSI14", "거래량배수", "종가위치%", "윗꼬리%", "시장대비강도%p", "OBV", "CVD Proxy", "표본수", "신뢰도", "유사도중앙거리", "익일승률%", "갭상승확률%", "예상시가하단%", "예상시가상단%", "예상종가하단%", "예상종가상단%", "예상고가%", "예상저가%", reach_key, "초기손절도달확률%", "평균MAE%", "손절률%", "1차손익비R", "2차손익비R"]}
         st.dataframe(pd.DataFrame([details]), use_container_width=True, hide_index=True)
         if summary:
             st.markdown("#### 외국인·기관 수급 및 공매도")
@@ -407,6 +560,16 @@ def show_detail(row):
         st.info("공매도 거래·잔고는 KRX 공개 통계이며 특정 투자자의 개별 포지션을 뜻하지 않습니다. 잔고 데이터는 공표 시차가 있을 수 있습니다.")
         try: st.plotly_chart(chart(row["종목코드"], row), use_container_width=True)
         except Exception as exc: st.warning(f"차트를 불러오지 못했습니다: {exc}")
+
+
+def scanner_table(frame):
+    color_cols = [c for c in ("해외 괴리율%", "NXT 프리미엄%") if c in frame.columns]
+    if not color_cols:
+        return frame
+    def color_value(value):
+        if pd.isna(value): return "color: #8b93a5"
+        return "color: #2e9d50; font-weight: 700" if value > 0 else "color: #d14b4b; font-weight: 700" if value < 0 else ""
+    return frame.style.map(color_value, subset=color_cols).format({c: "{:+.2f}%" for c in color_cols}, na_rep="데이터 없음")
 
 
 # ── 화면 ────────────────────────────────────────────────────────────
@@ -425,10 +588,13 @@ with st.sidebar:
     min_score = st.slider("최소 종목점수", 50, 100, 75, 5)
     lookback = st.select_slider("조회 기간(일)", [180, 250, 365, 540], value=365)
     do_bt = st.checkbox("과거 동일신호 백테스트", True)
+    prediction_horizon = st.select_slider("+3% 도달 관찰기간(거래일)", [1, 3, 5, 10], value=5)
+    min_prediction_samples = st.slider("예측 최소 유사표본 수", 10, 50, 20, 5)
     workers = st.slider("동시 조회 수", 2, 10, 5)
 
 p = {"min_value": min_value * 1e8, "min_price": min_price, "min_vr": min_vr, "rsi_lo": rlo, "rsi_hi": rhi,
-     "close_pos": close_pos, "max_wick": max_wick, "min_rel": min_rel, "max_gap": max_gap, "min_score": min_score}
+     "close_pos": close_pos, "max_wick": max_wick, "min_rel": min_rel, "max_gap": max_gap, "min_score": min_score,
+     "prediction_horizon": prediction_horizon, "min_prediction_samples": min_prediction_samples}
 
 with st.spinner("시장환경 확인 중..."):
     market_score, market_label, market_data, market_reasons = market_environment()
@@ -457,7 +623,7 @@ if len(matches):
         mkt = str(r.get("Market", "KOSPI")); sec = str(r.get("Sector", r.get("Industry", "")))
         with st.spinner("종목 분석 중..."):
             result = analyze(r.Code, r.Name, mkt, sec, (date.today() - timedelta(days=lookback)).isoformat(), p, do_bt, market_score, market_data)
-        if result: st.session_state["scanner_v5_selected"] = result
+        if result: st.session_state["scanner_v5_selected"] = enrich_after_hours(result)
         else: st.error("분석에 필요한 가격 데이터가 부족합니다.")
 elif query:
     st.warning("일치하는 KRX 종목이 없습니다.")
@@ -481,6 +647,7 @@ if st.button("오늘 종가매매 후보 스캔 v5", type="primary", use_contain
             progress.progress(i / max(len(futures), 1)); message.text(f"{i}/{len(futures)} 종목 분석 중")
     progress.empty(); message.empty()
     if rows:
+        rows = [enrich_after_hours(row) for row in rows]
         R = pd.DataFrame(rows).sort_values(["최종순위점수", "종합점수"], ascending=False)
         st.session_state["scanner_v5_all"] = R
     else: st.error("분석 결과가 없습니다.")
@@ -490,15 +657,15 @@ if "scanner_v5_all" in st.session_state:
     buys = R[R["판정"] == "매수후보"].head(5)
     near = R[R["판정"] != "매수후보"].sort_values(["최종순위점수", "종합점수"], ascending=False).head(5)
     st.subheader("오늘의 최종 매수후보 TOP5")
-    if len(buys): st.dataframe(buys, use_container_width=True, hide_index=True)
+    if len(buys): st.dataframe(scanner_table(buys), use_container_width=True, hide_index=True)
     else: st.info("오늘 하드필터 통과 종목은 0개입니다. 아래 조건근접 TOP5를 대신 확인하세요.")
     st.subheader("조건근접 TOP5")
-    st.dataframe(near, use_container_width=True, hide_index=True)
+    st.dataframe(scanner_table(near), use_container_width=True, hide_index=True)
 
     st.subheader("업종별 / 전체 후보표")
     sector_choice = st.selectbox("업종 보기", ["전체", "반도체", "성장·기술", "에너지", "항공·운송", "일반"])
     view = R if sector_choice == "전체" else R[R["업종분류"] == sector_choice]
-    st.dataframe(view, use_container_width=True, hide_index=True)
+    st.dataframe(scanner_table(view), use_container_width=True, hide_index=True)
     if len(view):
         labels = [f"{r['종목명']} ({r['종목코드']}) · {r['판정']}" for _, r in view.iterrows()]
         chosen = st.selectbox("상세 차트 종목 선택", labels)

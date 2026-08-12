@@ -1,0 +1,3 @@
+krx_code,ticker,provider,currency,product_type,ratio,verified_1to1,note
+005930,SAMSUNG,unverified,USD,tokenized,1,false,공식 1:1 KRX 보통주 대응 확인 전 비교 제외
+000660,SKHY,unverified,USD,adr,1,false,ADR 전환비율과 권리 구조 확인 전 비교 제외
