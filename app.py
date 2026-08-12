@@ -228,15 +228,19 @@ def backtest(df, market_ret, p):
             f = row_features(df, market_ret, i, p)
             if f["hard"] and f["score"] >= p["min_score"]:
                 entry, future = float(df["Close"].iloc[i]), df.iloc[i + 1:i + 11]
-                samples.append(((df["Close"].iloc[i + 5] / entry - 1) * 100,
+                samples.append(((df["Close"].iloc[i + 1] / entry - 1) * 100,
+                                (df["Close"].iloc[i + 5] / entry - 1) * 100,
                                 (future["High"].max() / entry - 1) * 100,
                                 (future["Low"].min() / entry - 1) * 100))
         except Exception:
             continue
-    if not samples: return {"표본수": 0, "5일승률%": np.nan, "5일평균%": np.nan, "10일내+3%도달%": np.nan, "평균MAE%": np.nan}
+    if not samples: return {"표본수": 0, "익일승률%": np.nan, "익일평균%": np.nan, "익일표준편차%": np.nan,
+                            "5일승률%": np.nan, "5일평균%": np.nan, "10일내+3%도달%": np.nan, "평균MAE%": np.nan}
     x = np.asarray(samples)
-    return {"표본수": len(x), "5일승률%": round((x[:, 0] > 0).mean() * 100, 1), "5일평균%": round(x[:, 0].mean(), 2),
-            "10일내+3%도달%": round((x[:, 1] >= 3).mean() * 100, 1), "평균MAE%": round(x[:, 2].mean(), 2)}
+    return {"표본수": len(x), "익일승률%": round((x[:, 0] > 0).mean() * 100, 1), "익일평균%": round(x[:, 0].mean(), 2),
+            "익일표준편차%": round(x[:, 0].std(ddof=1), 2) if len(x) > 1 else np.nan,
+            "5일승률%": round((x[:, 1] > 0).mean() * 100, 1), "5일평균%": round(x[:, 1].mean(), 2),
+            "10일내+3%도달%": round((x[:, 2] >= 3).mean() * 100, 1), "평균MAE%": round(x[:, 3].mean(), 2)}
 
 
 def ranking_score(stock_score, market_score, sector_score, bt, rr):
@@ -340,29 +344,69 @@ def chart(symbol, row):
 
 
 def show_detail(row):
-    st.subheader(f"{row['종목명']} ({row['종목코드']}) 상세")
-    cols = st.columns(6)
-    for c, label, value in zip(cols, ("판정", "종합점수", "진입가", "초기손절", "1차익절", "2차익절"),
-                               (row["판정"], f"{row['종합점수']:.1f}", f"{row['진입가']:,.0f}원", f"{row['초기손절']:,.0f}원", f"{row['1차익절(+10%)']:,.0f}원", f"{row['2차익절(+20%)']:,.0f}원")):
-        c.metric(label, value)
-    st.write(f"**탈락사유:** {row['탈락사유']}")
-    details = {k: row.get(k) for k in ["종목점수", "시장환경", "업종환경", "최종순위점수", "업종분류", "유형", "RSI14", "거래량배수", "종가위치%", "윗꼬리%", "시장대비강도%p", "OBV", "CVD Proxy", "표본수", "5일승률%", "5일평균%", "10일내+3%도달%", "평균MAE%", "손절률%", "1차손익비R", "2차손익비R"]}
-    st.dataframe(pd.DataFrame([details]), use_container_width=True, hide_index=True)
+    st.subheader(f"{row['종목명']} ({row['종목코드']}) 핵심 요약")
     with st.spinner("수급·공매도 데이터 확인 중..."):
         summary, flow, short = flow_and_short(row["종목코드"])
-    if summary:
-        st.markdown("#### 외국인·기관 수급 및 공매도")
-        st.dataframe(pd.DataFrame([summary]), use_container_width=True, hide_index=True)
-    if len(flow):
-        with st.expander("외국인·기관 일별 순매수/순매도 현황"):
+
+    foreign = summary.get("외국인5일순매수(억원)", np.nan)
+    foreign_text = "조회 불가" if pd.isna(foreign) else f"{foreign:+,.1f}억원"
+    short_ratio = summary.get("공매도잔고비중%", summary.get("최근공매도비중%", np.nan))
+    short_text = "조회 불가" if pd.isna(short_ratio) else f"{short_ratio:.2f}%"
+    sample_n = int(row.get("표본수", 0) or 0)
+    next_win = row.get("익일승률%", np.nan)
+    next_avg = row.get("익일평균%", np.nan)
+    next_std = row.get("익일표준편차%", np.nan)
+    if sample_n >= 10 and pd.notna(next_win):
+        direction = "상승 우세" if next_win >= 55 else "하락 우세" if next_win <= 45 else "중립"
+        next_text = f"{direction} · 상승 {next_win:.0f}%"
+        expected = float(row["진입가"]) * (1 + float(next_avg) / 100)
+        if pd.notna(next_std):
+            low = float(row["진입가"]) * (1 + (float(next_avg) - float(next_std)) / 100)
+            high = float(row["진입가"]) * (1 + (float(next_avg) + float(next_std)) / 100)
+            price_text = f"중심 {expected:,.0f}원 · 범위 {low:,.0f}~{high:,.0f}원"
+        else:
+            price_text = f"중심 {expected:,.0f}원"
+    else:
+        next_text = "산출 불가"
+        price_text = f"표본 {sample_n}회 · 최소 10회 필요"
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("진입 추천 점수", f"{row['종합점수']:.1f}/100", row["판정"])
+    c2.metric("OBV", row.get("OBV", "-"))
+    c3.metric("CVD Proxy", row.get("CVD Proxy", "-"))
+    c4.metric("RSI(14)", f"{row.get('RSI14', np.nan):.1f}")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("공매도 잔고/거래 비중", short_text)
+    c2.metric("외국인 5일 순매수", foreign_text)
+    c3.metric("익일 상승·하락 가능성", next_text)
+    c4.metric("익일 예상 가격", price_text)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("진입가", f"{row['진입가']:,.0f}원")
+    c2.metric("손절가", f"{row['초기손절']:,.0f}원", f"-{row['손절률%']:.2f}%")
+    c3.metric("1차 익절가", f"{row['1차익절(+10%)']:,.0f}원", "+10%")
+    c4.metric("2차 익절가", f"{row['2차익절(+20%)']:,.0f}원", "+20%")
+
+    st.caption("익일 가능성과 예상 가격은 과거 동일조건 표본이 10회 이상일 때만 표시하는 통계적 참고값이며 실제 가격 예측이나 수익 보장이 아닙니다.")
+
+    with st.expander("자세히 보기 — 탈락사유·전체 지표·차트·일별 수급"):
+        st.write(f"**판정:** {row['판정']}  |  **탈락사유:** {row['탈락사유']}")
+        details = {k: row.get(k) for k in ["종목점수", "시장환경", "업종환경", "최종순위점수", "업종분류", "유형", "RSI14", "거래량배수", "종가위치%", "윗꼬리%", "시장대비강도%p", "OBV", "CVD Proxy", "표본수", "익일승률%", "익일평균%", "익일표준편차%", "5일승률%", "5일평균%", "10일내+3%도달%", "평균MAE%", "손절률%", "1차손익비R", "2차손익비R"]}
+        st.dataframe(pd.DataFrame([details]), use_container_width=True, hide_index=True)
+        if summary:
+            st.markdown("#### 외국인·기관 수급 및 공매도")
+            st.dataframe(pd.DataFrame([summary]), use_container_width=True, hide_index=True)
+        if len(flow):
+            st.markdown("#### 외국인·기관 일별 순매수/순매도")
             st.dataframe((flow / 1e8).round(2).rename_axis("날짜"), use_container_width=True)
             st.caption("단위: 억원. 양수는 순매수, 음수는 순매도입니다.")
-    if len(short):
-        with st.expander("일별 공매도 거래 현황"):
+        if len(short):
+            st.markdown("#### 일별 공매도 거래")
             st.dataframe(short.rename_axis("날짜"), use_container_width=True)
-    st.info("공매도 거래·잔고는 KRX 공개 통계이며 특정 투자자의 개별 포지션을 뜻하지 않습니다. 잔고 데이터는 공표 시차가 있을 수 있습니다.")
-    try: st.plotly_chart(chart(row["종목코드"], row), use_container_width=True)
-    except Exception as exc: st.warning(f"차트를 불러오지 못했습니다: {exc}")
+        st.info("공매도 거래·잔고는 KRX 공개 통계이며 특정 투자자의 개별 포지션을 뜻하지 않습니다. 잔고 데이터는 공표 시차가 있을 수 있습니다.")
+        try: st.plotly_chart(chart(row["종목코드"], row), use_container_width=True)
+        except Exception as exc: st.warning(f"차트를 불러오지 못했습니다: {exc}")
 
 
 # ── 화면 ────────────────────────────────────────────────────────────
