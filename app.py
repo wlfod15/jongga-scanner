@@ -10,6 +10,7 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 from global_price import after_hours_snapshot, load_product_map, nxt_delayed_quotes, usdkrw_quote
+from market_ui import extract_close, impact_groups, last_metrics, legacy_market_score, market_table
 
 try:
     from pykrx import stock as krx_stock
@@ -38,6 +39,11 @@ html, body, [data-testid="stAppViewContainer"] { background: #f6f8fb; }
 [data-testid="stMetricValue"] { font-size: clamp(1.25rem, 4.5vw, 2.35rem); }
 [data-testid="stMetricValue"] > div { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
 [data-testid="stMetricDelta"] { font-size: clamp(.78rem, 2.8vw, 1rem); }
+.validation-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.validation-card { min-width: 0; background: #fff; border: 1px solid #e7eaf0; border-radius: 1rem; padding: 1rem 1.1rem; }
+.validation-label { color: #555d6d; font-size: .95rem; margin-bottom: .45rem; }
+.validation-value { font-size: clamp(1.35rem, 3vw, 2.15rem); font-weight: 650; line-height: 1.15; overflow-wrap: anywhere; }
+.validation-sub { color: #697386; font-size: .9rem; margin-top: .4rem; }
 @media (max-width: 640px) {
   .block-container { padding: 1rem .75rem 3rem; }
   h1 { font-size: 1.75rem !important; line-height: 1.2 !important; }
@@ -46,6 +52,7 @@ html, body, [data-testid="stAppViewContainer"] { background: #f6f8fb; }
   [data-testid="column"] { flex: 1 1 100% !important; min-width: 0 !important; }
   [data-testid="stMetric"] { padding: .85rem 1rem; border-radius: .85rem; }
   [data-testid="stDataFrame"] { font-size: .78rem; }
+  .validation-grid { grid-template-columns: 1fr; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -94,39 +101,27 @@ def prep(df):
     return x
 
 
-def _last_metrics(series):
-    s = series.dropna()
-    if len(s) < 2:
-        return {"현재": np.nan, "1일": np.nan, "5일": np.nan}
-    base = float(s.iloc[-6]) if len(s) >= 6 else float(s.iloc[0])
-    return {"현재": float(s.iloc[-1]), "1일": (s.iloc[-1] / s.iloc[-2] - 1) * 100,
-            "5일": (s.iloc[-1] / base - 1) * 100}
-
-
 @st.cache_data(ttl=900, show_spinner=False)
 def yahoo_metric(ticker):
     if not YF_OK:
-        return {"현재": np.nan, "1일": np.nan, "5일": np.nan}
+        return {"현재": np.nan, "전일대비": np.nan, "5일 누적": np.nan}
     try:
         x = yf.download(ticker, period="12d", interval="1d", progress=False,
                         auto_adjust=False, threads=False)
-        close = x["Close"]
-        if isinstance(close, pd.DataFrame):
-            close = close.iloc[:, 0]
-        return _last_metrics(close)
+        return last_metrics(extract_close(x, ticker))
     except Exception:
-        return {"현재": np.nan, "1일": np.nan, "5일": np.nan}
+        return {"현재": np.nan, "전일대비": np.nan, "5일 누적": np.nan}
 
 
 @st.cache_data(ttl=900, show_spinner=False)
 def index_metric(code):
     try:
         x = fdr.DataReader(code, (date.today() - timedelta(days=45)).isoformat())
-        out = _last_metrics(x["Close"])
+        out = last_metrics(extract_close(x))
         out["20일선상"] = bool(x["Close"].iloc[-1] >= x["Close"].rolling(20).mean().iloc[-1]) if len(x) >= 20 else None
         return out
     except Exception:
-        return {"현재": np.nan, "1일": np.nan, "5일": np.nan, "20일선상": None}
+        return {"현재": np.nan, "전일대비": np.nan, "5일 누적": np.nan, "20일선상": None}
 
 
 def market_environment():
@@ -136,37 +131,7 @@ def market_environment():
         "WTI": yahoo_metric("CL=F"), "SOX": yahoo_metric("^SOX"),
         "KOSPI": index_metric("KS11"), "KOSDAQ": index_metric("KQ11"),
     }
-    score, reasons = 50, []
-    vix = data["VIX"]
-    if pd.notna(vix["현재"]):
-        if vix["현재"] < 18: score += 12; reasons.append("VIX 안정")
-        elif vix["현재"] < 25: score += 5
-        elif vix["현재"] < 30: score -= 8; reasons.append("VIX 경계")
-        else: score -= 15; reasons.append("VIX 고위험")
-        if pd.notna(vix["1일"]) and vix["1일"] >= 10: score -= 10; reasons.append("VIX 급등")
-    fx = data["원/달러"]
-    if pd.notna(fx["1일"]):
-        if fx["1일"] <= -0.3: score += 6; reasons.append("원화 강세")
-        elif fx["1일"] >= 1: score -= 10; reasons.append("원/달러 급등")
-        elif fx["1일"] >= .5: score -= 5
-    nq = data["나스닥100 선물"]
-    if pd.notna(nq["1일"]):
-        if nq["1일"] >= 1: score += 12; reasons.append("나스닥 선물 강세")
-        elif nq["1일"] >= .3: score += 7
-        elif nq["1일"] <= -1: score -= 15; reasons.append("나스닥 선물 약세")
-        elif nq["1일"] <= -.3: score -= 7
-    tnx = data["미국10년물"]
-    if pd.notna(tnx["1일"]):
-        if tnx["1일"] >= 3: score -= 7; reasons.append("미국 10년물 급등")
-        elif tnx["1일"] <= -3: score += 4
-    for key in ("KOSPI", "KOSDAQ"):
-        m = data[key]
-        if pd.notna(m["1일"]): score += 5 if m["1일"] >= 1 else (-5 if m["1일"] <= -1 else 0)
-        score += 3 if m.get("20일선상") is True else (-3 if m.get("20일선상") is False else 0)
-    if pd.notna(data["WTI"]["1일"]) and abs(data["WTI"]["1일"]) >= 5:
-        score -= 3; reasons.append("유가 변동성 확대")
-    score = int(np.clip(score, 0, 100))
-    label = "우호" if score >= 75 else "보통" if score >= 55 else "주의" if score >= 40 else "고위험"
+    score, label, reasons = legacy_market_score(data)
     return score, label, data, reasons
 
 
@@ -189,8 +154,8 @@ def asset_score(change, positive=True):
 
 def sector_environment(name, sector_text, market_score, md):
     cat = classify_sector(name, sector_text)
-    nq, sox = asset_score(md["나스닥100 선물"]["1일"]), asset_score(md["SOX"]["1일"])
-    oil, oil_inv = asset_score(md["WTI"]["1일"]), asset_score(md["WTI"]["1일"], False)
+    nq, sox = asset_score(md["나스닥100 선물"]["전일대비"]), asset_score(md["SOX"]["전일대비"])
+    oil, oil_inv = asset_score(md["WTI"]["전일대비"]), asset_score(md["WTI"]["전일대비"], False)
     score = ({
         "반도체": .65 * sox + .20 * nq + .15 * market_score,
         "성장·기술": .75 * nq + .10 * sox + .15 * market_score,
@@ -606,6 +571,23 @@ def scanner_table(frame):
     return frame.style.map(color_value, subset=color_cols).format({c: "{:+.2f}%" for c in color_cols}, na_rep="데이터 없음")
 
 
+def market_table_style(frame):
+    def direction_color(value):
+        text = str(value)
+        if text.startswith("▲"): return "color: #238636; font-weight: 700"
+        if text.startswith("▼"): return "color: #cf3c4f; font-weight: 700"
+        return "color: #7a8292"
+
+    def impact_color(value):
+        colors = {"긍정": "#238636", "부정": "#cf3c4f", "중립": "#7a8292", "데이터 없음": "#7a8292"}
+        return f"color: {colors.get(str(value), '#7a8292')}; font-weight: 700"
+
+    return (frame.style
+            .map(direction_color, subset=["전일대비", "5일 누적"])
+            .map(impact_color, subset=["증시영향"])
+            .format({"현재": "{:,.2f}"}, na_rep="데이터 없음"))
+
+
 # ── 화면 ────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("v5 스캔 조건")
@@ -637,9 +619,19 @@ st.subheader("오늘 시장환경")
 a, b, c, d = st.columns(4)
 a.metric("시장환경 점수", f"{market_score}/100"); b.metric("판정", market_label)
 c.metric("VIX", "-" if pd.isna(market_data["VIX"]["현재"]) else f"{market_data['VIX']['현재']:.1f}")
-d.metric("나스닥100 선물", "-" if pd.isna(market_data["나스닥100 선물"]["현재"]) else f"{market_data['나스닥100 선물']['현재']:,.0f}", None if pd.isna(market_data["나스닥100 선물"]["1일"]) else f"{market_data['나스닥100 선물']['1일']:+.2f}%")
-st.dataframe(pd.DataFrame([{"지표": k, **{q: (None if pd.isna(v[q]) else round(v[q], 2)) for q in ("현재", "1일", "5일")}} for k, v in market_data.items()]), use_container_width=True, hide_index=True)
-if market_reasons: st.caption("시장환경 신호: " + " · ".join(market_reasons))
+d.metric("나스닥100 선물", "-" if pd.isna(market_data["나스닥100 선물"]["현재"]) else f"{market_data['나스닥100 선물']['현재']:,.0f}", None if pd.isna(market_data["나스닥100 선물"]["전일대비"]) else f"{market_data['나스닥100 선물']['전일대비']:+.2f}%")
+market_view = market_table(market_data)
+st.dataframe(market_table_style(market_view), use_container_width=True, hide_index=True,
+             column_config={"현재": st.column_config.NumberColumn("현재"),
+                            "전일대비": st.column_config.TextColumn("전일대비 (%)"),
+                            "5일 누적": st.column_config.TextColumn("5일 누적 (%)")})
+groups = impact_groups(market_data)
+st.markdown(f"**시장환경 {market_score}/100 · {market_label}**")
+for impact in ("긍정", "부정", "중립"):
+    if groups[impact]:
+        st.markdown(f"**{impact}:** " + " · ".join(groups[impact]))
+if groups["데이터 없음"]:
+    st.caption("데이터 없음: " + " · ".join(groups["데이터 없음"]))
 
 st.caption("최종순위점수는 종목 45%·시장 15%·업종 10%·과거 5일 승률 15%·1차 손익비 10%·표본 신뢰도 5%의 검증 전 설계 가중치입니다. 실전 성과를 보장하지 않습니다.")
 
@@ -689,13 +681,14 @@ if "scanner_v5_validation" in st.session_state and search_mode == "과거 날짜
     elif validation["상태"] == "실제 종가 대기":
         st.info("다음 거래일 실제 종가가 아직 없어 검증할 수 없습니다.")
     else:
-        c1, c2, c3 = st.columns(3)
-        c1.metric("예측가", f"{validation['예측가']:,.0f}원")
-        c2.metric("실제 종가", f"{validation['실제 종가']:,.0f}원")
-        c3.metric("실제 종가와의 차이", f"{validation['차이']:+,.0f}원", f"{validation['차이율%']:+.2f}%")
+        st.markdown(f"""
+        <div class="validation-grid">
+          <div class="validation-card"><div class="validation-label">예측가</div><div class="validation-value">{validation['예측가']:,.0f}원</div></div>
+          <div class="validation-card"><div class="validation-label">실제 종가</div><div class="validation-value">{validation['실제 종가']:,.0f}원</div></div>
+          <div class="validation-card"><div class="validation-label">실제 종가와의 차이</div><div class="validation-value">{validation['차이']:+,.0f}원</div><div class="validation-sub">{validation['차이율%']:+.2f}%</div></div>
+        </div>
+        """, unsafe_allow_html=True)
         st.caption(f"기준일 {validation['기준일']} → 실제 종가일 {validation['실제일']} · 예측가는 당시 데이터만 사용한 예상 종가 중심값입니다.")
-        with st.expander("상세 검증 데이터"):
-            st.json(validation["상세"])
 
 if st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_container_width=True):
     scan = L.copy()
