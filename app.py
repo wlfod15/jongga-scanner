@@ -531,6 +531,10 @@ def rebound_chart(symbol, row):
 
 
 def show_detail(row):
+    if st.button("← 간편보기로 돌아가기", use_container_width=True, key="back_to_simple_view"):
+        st.session_state["scanner_v5_selected_mode"] = "simple"
+        st.query_params["view"] = "simple"
+        st.rerun()
     st.subheader(f"{row['종목명']} ({row['종목코드']}) 핵심 요약")
     with st.spinner("수급·공매도 데이터 확인 중..."):
         summary, flow, short = flow_and_short(row["종목코드"])
@@ -709,6 +713,7 @@ def show_simple_prediction(row):
         with st.spinner("상세 데이터 불러오는 중..."):
             st.session_state["scanner_v5_selected"] = enrich_after_hours(dict(row))
         st.session_state["scanner_v5_selected_mode"] = "detail"
+        st.query_params["view"] = "detail"
         st.rerun()
 
 
@@ -824,6 +829,7 @@ if move_clicked and len(matches):
         if result:
             st.session_state["scanner_v5_selected"] = result
             st.session_state["scanner_v5_selected_mode"] = "simple"
+            st.query_params["view"] = "simple"
         else: st.error("분석에 필요한 가격 데이터가 부족합니다.")
 elif move_clicked and query:
     st.warning("일치하는 KRX 종목이 없습니다.")
@@ -902,9 +908,13 @@ if "scanner_v5_all" in st.session_state:
         if st.button("선택 종목 상세보기"):
             st.session_state["scanner_v5_selected"] = view.iloc[labels.index(chosen)].to_dict()
             st.session_state["scanner_v5_selected_mode"] = "detail"
+            st.query_params["view"] = "detail"
     st.download_button("v5 전체 결과 CSV 다운로드", R.to_csv(index=False).encode("utf-8-sig"), "krx_jongga_scanner_v5.csv", "text/csv")
 
 if "scanner_v5_selected" in st.session_state:
+    requested_view = st.query_params.get("view")
+    if requested_view in ("simple", "detail"):
+        st.session_state["scanner_v5_selected_mode"] = requested_view
     if st.session_state.get("scanner_v5_selected_mode") == "simple":
         show_simple_prediction(st.session_state["scanner_v5_selected"])
     else:
