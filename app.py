@@ -580,6 +580,36 @@ def show_detail(row):
         except Exception as exc: st.warning(f"차트를 불러오지 못했습니다: {exc}")
 
 
+def show_simple_prediction(row):
+    """Minimal result used by direct stock lookup."""
+    st.markdown(f"#### {row['종목명']} ({row['종목코드']}) 예상 가격")
+    prediction_ok = row.get("예측상태") == "산출"
+    entry = float(row["진입가"])
+
+    def predicted_price(key):
+        value = row.get(key, np.nan)
+        if not prediction_ok or pd.isna(value):
+            return "표본 부족"
+        return f"{entry * (1 + float(value) / 100):,.0f}원"
+
+    open_key = "예상시가평균%"
+    if pd.isna(row.get(open_key, np.nan)) and prediction_ok:
+        low = row.get("예상시가하단%", np.nan)
+        high = row.get("예상시가상단%", np.nan)
+        if pd.notna(low) and pd.notna(high):
+            row = {**row, open_key: (float(low) + float(high)) / 2}
+
+    c1, c2 = st.columns(2)
+    c1.metric("예상 시가", predicted_price(open_key))
+    c2.metric("예상 종가", predicted_price("익일평균%"))
+    st.caption("과거 유사조건과 ATR14를 결합한 통계적 예상 중심값이며 실제 가격을 보장하지 않습니다.")
+    if st.button("자세히 보기", use_container_width=True):
+        with st.spinner("상세 데이터 불러오는 중..."):
+            st.session_state["scanner_v5_selected"] = enrich_after_hours(dict(row))
+        st.session_state["scanner_v5_selected_mode"] = "detail"
+        st.rerun()
+
+
 def scanner_table(frame):
     color_cols = [c for c in ("해외 괴리율%", "NXT 프리미엄%") if c in frame.columns]
     if not color_cols:
@@ -684,7 +714,9 @@ if move_clicked and len(matches):
     else:
         with st.spinner("종목 분석 중..."):
             result = analyze(r.Code, r.Name, mkt, sec, (date.today() - timedelta(days=lookback)).isoformat(), p, do_bt, market_score, market_data)
-        if result: st.session_state["scanner_v5_selected"] = enrich_after_hours(result)
+        if result:
+            st.session_state["scanner_v5_selected"] = result
+            st.session_state["scanner_v5_selected_mode"] = "simple"
         else: st.error("분석에 필요한 가격 데이터가 부족합니다.")
 elif move_clicked and query:
     st.warning("일치하는 KRX 종목이 없습니다.")
@@ -757,10 +789,14 @@ if "scanner_v5_all" in st.session_state:
         chosen = st.selectbox("상세 차트 종목 선택", labels)
         if st.button("선택 종목 상세보기"):
             st.session_state["scanner_v5_selected"] = view.iloc[labels.index(chosen)].to_dict()
+            st.session_state["scanner_v5_selected_mode"] = "detail"
     st.download_button("v5 전체 결과 CSV 다운로드", R.to_csv(index=False).encode("utf-8-sig"), "krx_jongga_scanner_v5.csv", "text/csv")
 
 if "scanner_v5_selected" in st.session_state:
-    show_detail(st.session_state["scanner_v5_selected"])
+    if st.session_state.get("scanner_v5_selected_mode") == "simple":
+        show_simple_prediction(st.session_state["scanner_v5_selected"])
+    else:
+        show_detail(st.session_state["scanner_v5_selected"])
 
 st.divider()
 st.caption("연구·정보 제공용 도구입니다. CVD Proxy는 실제 체결 CVD가 아니며, 백테스트에는 거래비용·슬리피지·생존편향이 완전히 반영되지 않습니다. 투자 판단과 책임은 사용자에게 있습니다.")
