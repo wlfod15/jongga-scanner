@@ -288,6 +288,7 @@ def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0):
         "예상시가하단%": round(open_low, 2), "예상시가상단%": round(open_high, 2),
         "예상종가하단%": round(close_low, 2), "예상종가상단%": round(close_high, 2),
         "예상고가%": round(expected_high, 2), "예상저가%": round(expected_low, 2),
+        "예상시가평균%": round(float(np.average(out["open"], weights=weights)), 2),
         "익일평균%": round(float(np.average(out["close"], weights=weights)), 2),
         "익일표준편차%": round(float(out["close"].std(ddof=1)), 2),
         f"{horizon}일승률%": round(_weighted_rate(out["horizon_close"], weights, lambda x: x > 0), 1),
@@ -352,17 +353,24 @@ def validate_at_date(symbol, selected_date, market, p, lookback_days):
     prediction = similar_prediction(history, market_history, p["prediction_horizon"],
                                     p["min_prediction_samples"], stop_pct)
     actual_date = full.index[base_pos + 1]
+    actual_open = float(full["Open"].iloc[base_pos + 1])
     actual_close = float(full["Close"].iloc[base_pos + 1])
     if prediction.get("예측상태") != "산출":
         return {"상태": "표본 부족", "기준일": pd.Timestamp(base_date).date(),
-                "실제일": pd.Timestamp(actual_date).date(), "실제 종가": actual_close,
+                "실제일": pd.Timestamp(actual_date).date(), "실제 시가": actual_open, "실제 종가": actual_close,
                 "표본수": prediction.get("표본수", 0)}
-    predicted = float(history["Close"].iloc[-1]) * (1 + float(prediction["익일평균%"]) / 100)
-    difference = actual_close - predicted
+    base_close = float(history["Close"].iloc[-1])
+    predicted_open = base_close * (1 + float(prediction["예상시가평균%"]) / 100)
+    predicted_close = base_close * (1 + float(prediction["익일평균%"]) / 100)
+    open_difference = actual_open - predicted_open
+    close_difference = actual_close - predicted_close
     return {"상태": "산출", "기준일": pd.Timestamp(base_date).date(),
-            "실제일": pd.Timestamp(actual_date).date(), "예측가": predicted,
-            "실제 종가": actual_close, "차이": difference,
-            "차이율%": difference / predicted * 100, "상세": prediction}
+            "실제일": pd.Timestamp(actual_date).date(),
+            "예상 시가": predicted_open, "실제 시가": actual_open,
+            "시가 차이": open_difference, "시가 차이율%": open_difference / predicted_open * 100,
+            "예상 종가": predicted_close, "실제 종가": actual_close,
+            "종가 차이": close_difference, "종가 차이율%": close_difference / predicted_close * 100,
+            "상세": prediction}
 
 
 # ── 종목 목록, 수급, 공매도 ─────────────────────────────────────────
@@ -680,15 +688,20 @@ if "scanner_v5_validation" in st.session_state and search_mode == "과거 날짜
         st.warning(f"표본 부족 · 유사 표본 {validation.get('표본수', 0)}회")
     elif validation["상태"] == "실제 종가 대기":
         st.info("다음 거래일 실제 종가가 아직 없어 검증할 수 없습니다.")
+    elif not all(key in validation for key in ("예상 시가", "실제 시가", "시가 차이", "예상 종가", "종가 차이")):
+        st.info("검증 계산 방식이 업데이트되었습니다. ‘이 종목으로 이동하기’를 다시 눌러주세요.")
     else:
         st.markdown(f"""
         <div class="validation-grid">
-          <div class="validation-card"><div class="validation-label">예측가</div><div class="validation-value">{validation['예측가']:,.0f}원</div></div>
+          <div class="validation-card"><div class="validation-label">예상 시가</div><div class="validation-value">{validation['예상 시가']:,.0f}원</div></div>
+          <div class="validation-card"><div class="validation-label">실제 시가</div><div class="validation-value">{validation['실제 시가']:,.0f}원</div></div>
+          <div class="validation-card"><div class="validation-label">시가 차이</div><div class="validation-value">{validation['시가 차이']:+,.0f}원</div><div class="validation-sub">{validation['시가 차이율%']:+.2f}%</div></div>
+          <div class="validation-card"><div class="validation-label">예상 종가</div><div class="validation-value">{validation['예상 종가']:,.0f}원</div></div>
           <div class="validation-card"><div class="validation-label">실제 종가</div><div class="validation-value">{validation['실제 종가']:,.0f}원</div></div>
-          <div class="validation-card"><div class="validation-label">실제 종가와의 차이</div><div class="validation-value">{validation['차이']:+,.0f}원</div><div class="validation-sub">{validation['차이율%']:+.2f}%</div></div>
+          <div class="validation-card"><div class="validation-label">종가 차이</div><div class="validation-value">{validation['종가 차이']:+,.0f}원</div><div class="validation-sub">{validation['종가 차이율%']:+.2f}%</div></div>
         </div>
         """, unsafe_allow_html=True)
-        st.caption(f"기준일 {validation['기준일']} → 실제 종가일 {validation['실제일']} · 예측가는 당시 데이터만 사용한 예상 종가 중심값입니다.")
+        st.caption(f"기준일 {validation['기준일']} → 실제 거래일 {validation['실제일']} · 예상가는 당시 데이터만 사용한 유사표본 가중 중심값입니다.")
 
 if st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_container_width=True):
     scan = L.copy()
