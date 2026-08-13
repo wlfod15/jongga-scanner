@@ -869,12 +869,21 @@ if search_mode == "과거 날짜 검증":
         min_value=date.today() - timedelta(days=730), max_value=date.today() - timedelta(days=1),
         help="선택한 날의 종가까지 알려졌다고 가정해 다음 거래일 종가를 예측합니다.")
 
-search_col, button_col = st.columns([4, 1])
-with search_col:
-    query = st.text_input("종목명 직접 입력", placeholder="여기에 원하는 종목명을 입력하세요")
-with button_col:
-    st.write("")
-    move_clicked = st.button("이 종목으로 이동하기", type="primary", use_container_width=True)
+with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True):
+    search_col, button_col = st.columns([4, 1])
+    with search_col:
+        query = st.text_input(
+            "종목명 직접 입력",
+            placeholder="여기에 원하는 종목명을 입력하세요",
+            help="PC에서는 종목명을 입력한 뒤 Enter를 눌러도 바로 검색됩니다.",
+        )
+    with button_col:
+        st.write("")
+        move_clicked = st.form_submit_button(
+            "이 종목으로 이동하기",
+            type="primary",
+            use_container_width=True,
+        )
 matches = pd.DataFrame()
 if query and len(L):
     matches = L[L["Name"].astype(str).str.contains(query, case=False, na=False, regex=False) | L["Code"].str.contains(query, regex=False)].head(30)
