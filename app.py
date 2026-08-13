@@ -376,6 +376,9 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
             (float(latest_prices.iloc[-1]) / float(latest_prices.iloc[-2]) - 1) * 100
             if len(latest_prices) >= 2 and float(latest_prices.iloc[-2]) != 0 else np.nan
         )
+        latest_price_date = (
+            pd.Timestamp(raw.index[-1]).strftime("%Y-%m-%d") if len(raw) else "-"
+        )
         now = datetime.now(ZoneInfo("Asia/Seoul"))
         market_hours = now.weekday() < 5 and (9, 0) <= (now.hour, now.minute) <= (15, 40)
         latest_is_today = len(raw) and pd.Timestamp(raw.index[-1]).date() == now.date()
@@ -399,6 +402,9 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
                "종가": round(float(r["Close"])), "등락률%": round(float(r["RET1"]), 2),
                "현재가": round(current_price) if pd.notna(current_price) else round(float(r["Close"])),
                "현재등락률%": round(current_change, 2) if pd.notna(current_change) else round(float(r["RET1"]), 2),
+               "현재가구분": "장중 최신 확인가" if market_hours and latest_is_today else "최근 KRX 종가",
+               "현재가기준일": latest_price_date,
+               "현재가조회시각": now.strftime("%Y-%m-%d %H:%M:%S"),
                "종목점수": f["score"],
                "시장환경": market_score, "업종환경": sector_score, "종합점수": combined, "판정": decision,
                "탈락사유": "없음" if not f["failures"] else " / ".join(f["failures"]), "유형": f["type"], "RSI14": round(float(r["RSI"]), 1),
@@ -845,6 +851,16 @@ def show_simple_prediction(row):
     """Mobile-first result used immediately after direct stock lookup."""
     context = prediction_context(row["날짜"], row.get("예측모드", "auto"))
     st.markdown(f"#### {row['종목명']} ({row['종목코드']})")
+    current_price = row.get("현재가", row.get("종가", np.nan))
+    current_change = row.get("현재등락률%", row.get("등락률%", np.nan))
+    current_label = row.get("현재가구분", "최근 KRX 종가")
+    price_text = "데이터 없음" if pd.isna(current_price) else f"{float(current_price):,.0f}원"
+    change_text = None if pd.isna(current_change) else f"{float(current_change):+.2f}%"
+    st.metric(current_label, price_text, change_text)
+    st.caption(
+        f"가격 기준일 {row.get('현재가기준일', row.get('날짜', '-'))} · "
+        f"조회 시각 {row.get('현재가조회시각', '-')} · 장중 가격은 지연될 수 있으며 실시간 체결가를 보장하지 않습니다."
+    )
     st.info(
         f"**{context['구분']}** · 가격 기준: {context['기준']} · "
         f"예측 대상: {context['대상']}\n\n{context['안내']}"
