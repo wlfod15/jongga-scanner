@@ -1101,7 +1101,13 @@ if selected_stock and len(L):
     matches = L[L["Code"].astype(str) == selected_code].head(1)
 if move_clicked:
     st.session_state["scanner_v5_hide_market"] = True
-    st.session_state.pop("scanner_v5_scan_notice", None)
+    for state_key in (
+        "scanner_v5_all", "scanner_v5_result_mode", "scanner_v5_scan_notice",
+        "scanner_v5_selected", "scanner_v5_selected_mode", "scanner_v5_validation",
+    ):
+        st.session_state.pop(state_key, None)
+    if "view" in st.query_params:
+        del st.query_params["view"]
     st.session_state["scanner_v5_direct_notice"] = "분석 중입니다. 완료되면 결과를 이 안내 아래에서 확인할 수 있습니다."
     direct_status.info("🔎 종목을 분석하고 있습니다. 완료 후 아래에서 결과를 확인하세요.")
 
@@ -1183,7 +1189,13 @@ if st.session_state.get("scanner_v5_scan_notice"):
 
 if scan_clicked or accumulation_scan_clicked:
     st.session_state["scanner_v5_hide_market"] = True
-    st.session_state.pop("scanner_v5_direct_notice", None)
+    for state_key in (
+        "scanner_v5_selected", "scanner_v5_selected_mode", "scanner_v5_validation",
+        "scanner_v5_direct_notice", "scanner_v5_all", "scanner_v5_result_mode",
+    ):
+        st.session_state.pop(state_key, None)
+    if "view" in st.query_params:
+        del st.query_params["view"]
     scan_name = "매집 흔적 종목" if accumulation_scan_clicked else "종가 매매 후보"
     st.session_state["scanner_v5_scan_notice"] = f"{scan_name}을(를) 분석 중입니다."
     scan_status.info(f"🔎 {scan_name}을(를) 찾고 있습니다. 완료 후 아래에서 결과를 확인하세요.")
