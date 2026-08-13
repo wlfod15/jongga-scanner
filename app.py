@@ -66,6 +66,76 @@ html, body, [data-testid="stAppViewContainer"] { background: #f6f8fb; }
 }
 </style>
 """, unsafe_allow_html=True)
+SCAN_SETTING_DEFAULTS = {
+    "market_filter": "전체",
+    "max_symbols": 300,
+    "min_value": 30,
+    "min_price": 2000,
+    "min_vr": 1.5,
+    "rsi_range": (55, 70),
+    "close_pos": 75,
+    "max_wick": 35,
+    "min_rel": 0.5,
+    "max_gap": 12,
+    "min_score": 75,
+    "lookback": 365,
+    "do_bt": True,
+    "prediction_horizon": 5,
+    "min_prediction_samples": 20,
+    "workers": 5,
+    "pattern_approach_pct": 3.0,
+    "pattern_filter": "전체",
+}
+for setting_name, default_value in SCAN_SETTING_DEFAULTS.items():
+    canonical_key = f"scanner_v5_setting_{setting_name}"
+    st.session_state.setdefault(canonical_key, default_value)
+    st.session_state.setdefault(f"sidebar_{setting_name}", st.session_state[canonical_key])
+    st.session_state.setdefault(f"mobile_{setting_name}", st.session_state[canonical_key])
+
+
+def sync_scan_setting(source_key, setting_name, peer_key):
+    value = st.session_state[source_key]
+    st.session_state[f"scanner_v5_setting_{setting_name}"] = value
+    st.session_state[peer_key] = value
+
+
+def setting_widget(prefix, setting_name, widget, *args, **kwargs):
+    widget_key = f"{prefix}_{setting_name}"
+    peer_prefix = "mobile" if prefix == "sidebar" else "sidebar"
+    kwargs.update({
+        "key": widget_key,
+        "on_change": sync_scan_setting,
+        "args": (widget_key, setting_name, f"{peer_prefix}_{setting_name}"),
+    })
+    return widget(*args, **kwargs)
+
+
+def render_scan_settings(prefix):
+    setting_widget(prefix, "market_filter", st.selectbox, "시장", ["전체", "KOSPI", "KOSDAQ"])
+    setting_widget(prefix, "max_symbols", st.select_slider, "스캔 종목 수", options=[100, 200, 300, 500, 800, 1200])
+    setting_widget(prefix, "min_value", st.number_input, "20일 평균 거래대금 최소(억원)", min_value=1, step=10)
+    setting_widget(prefix, "min_price", st.number_input, "최소 주가(원)", min_value=100, step=500)
+    setting_widget(prefix, "min_vr", st.slider, "거래량 최소 배수", min_value=.5, max_value=5., step=.1)
+    setting_widget(prefix, "rsi_range", st.slider, "RSI 범위", min_value=0, max_value=100)
+    setting_widget(prefix, "close_pos", st.slider, "종가 위치 최소(%)", min_value=50, max_value=100)
+    setting_widget(prefix, "max_wick", st.slider, "윗꼬리 최대(%)", min_value=5, max_value=60)
+    setting_widget(prefix, "min_rel", st.slider, "시장 대비 최소 강도(%p)", min_value=-3., max_value=10., step=.5)
+    setting_widget(prefix, "max_gap", st.slider, "MA20 최대 이격률(%)", min_value=1, max_value=30)
+    setting_widget(prefix, "min_score", st.slider, "최소 종목점수", min_value=50, max_value=100, step=5)
+    setting_widget(prefix, "lookback", st.select_slider, "조회 기간(일)", options=[180, 250, 365, 540])
+    setting_widget(prefix, "do_bt", st.checkbox, "과거 동일신호 백테스트")
+    setting_widget(prefix, "prediction_horizon", st.select_slider, "+3% 도달 관찰기간(거래일)", options=[1, 3, 5, 10])
+    setting_widget(prefix, "min_prediction_samples", st.slider, "예측 최소 유사표본 수", min_value=10, max_value=50, step=5)
+    setting_widget(prefix, "workers", st.slider, "동시 조회 수", min_value=2, max_value=10)
+    setting_widget(prefix, "pattern_approach_pct", st.slider, "추정 패턴 접근 범위(%)", min_value=1.0, max_value=10.0, step=.5)
+    setting_widget(
+        prefix, "pattern_filter", st.selectbox, "추정 패턴 필터",
+        ["전체", "반등가 ±3% 종목", "반등가 상향 돌파 종목", "+33%선 돌파 종목",
+         "+50%선 돌파 종목", "다음 목표가까지 상승여력 10% 이상",
+         "거래량 증가 + 반등선 돌파", "거래량 증가 + 33%선 돌파"],
+    )
+
+
 st.title("KRX 종가매매 종목 스캐너 v5")
 st.caption("시장·업종·수급·공매도·기술 신호와 과거 동일신호 통계를 한 화면에서 확인합니다.")
 st.markdown("""
@@ -102,6 +172,33 @@ st.markdown("""
   ⚠️ 모든 점수와 예상가격은 수익이나 가격 상승을 보장하지 않습니다. 실제 투자 결과에 대해 서비스 제공자는 책임지지 않으며 참고자료로만 사용해야 합니다.
 </div>
 """, unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+@media (max-width: 768px) {
+  .block-container { padding-top: 4.5rem !important; }
+  .st-key-mobile_settings_panel { display: block; }
+  .st-key-mobile_settings_panel details {
+    border: 1px solid #d5dae4;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 2px 10px rgba(25, 35, 55, .05);
+  }
+  .st-key-mobile_settings_panel details > summary {
+    min-height: 44px;
+    padding: .72rem .85rem;
+    font-weight: 750;
+  }
+}
+@media (min-width: 769px) {
+  .st-key-mobile_settings_panel { display: none; }
+}
+</style>
+""", unsafe_allow_html=True)
+with st.container(key="mobile_settings_panel"):
+    with st.expander("⚙️ 상세 조건 설정하기", expanded=False):
+        st.caption("시장·RSI·거래량·종가 위치 등 스캔 기준을 변경합니다.")
+        render_scan_settings("mobile")
 
 
 # ── 지표와 가격 데이터 ──────────────────────────────────────────────
@@ -1036,26 +1133,26 @@ def market_table_style(frame):
 # ── 화면 ────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("v5 스캔 조건")
-    market_filter = st.selectbox("시장", ["전체", "KOSPI", "KOSDAQ"])
-    max_symbols = st.select_slider("스캔 종목 수", [100, 200, 300, 500, 800, 1200], value=300)
-    min_value = st.number_input("20일 평균 거래대금 최소(억원)", 1, value=30, step=10)
-    min_price = st.number_input("최소 주가(원)", 100, value=2000, step=500)
-    min_vr = st.slider("거래량 최소 배수", .5, 5., 1.5, .1)
-    rlo, rhi = st.slider("RSI 범위", 0, 100, (55, 70))
-    close_pos = st.slider("종가 위치 최소(%)", 50, 100, 75)
-    max_wick = st.slider("윗꼬리 최대(%)", 5, 60, 35)
-    min_rel = st.slider("시장 대비 최소 강도(%p)", -3., 10., .5, .5)
-    max_gap = st.slider("MA20 최대 이격률(%)", 1, 30, 12)
-    min_score = st.slider("최소 종목점수", 50, 100, 75, 5)
-    lookback = st.select_slider("조회 기간(일)", [180, 250, 365, 540], value=365)
-    do_bt = st.checkbox("과거 동일신호 백테스트", True)
-    prediction_horizon = st.select_slider("+3% 도달 관찰기간(거래일)", [1, 3, 5, 10], value=5)
-    min_prediction_samples = st.slider("예측 최소 유사표본 수", 10, 50, 20, 5)
-    workers = st.slider("동시 조회 수", 2, 10, 5)
-    pattern_approach_pct = st.slider("추정 패턴 접근 범위(%)", 1.0, 10.0, 3.0, .5)
-    pattern_filter = st.selectbox("추정 패턴 필터", ["전체", "반등가 ±3% 종목", "반등가 상향 돌파 종목",
-        "+33%선 돌파 종목", "+50%선 돌파 종목", "다음 목표가까지 상승여력 10% 이상",
-        "거래량 증가 + 반등선 돌파", "거래량 증가 + 33%선 돌파"])
+    render_scan_settings("sidebar")
+
+market_filter = st.session_state["scanner_v5_setting_market_filter"]
+max_symbols = st.session_state["scanner_v5_setting_max_symbols"]
+min_value = st.session_state["scanner_v5_setting_min_value"]
+min_price = st.session_state["scanner_v5_setting_min_price"]
+min_vr = st.session_state["scanner_v5_setting_min_vr"]
+rlo, rhi = st.session_state["scanner_v5_setting_rsi_range"]
+close_pos = st.session_state["scanner_v5_setting_close_pos"]
+max_wick = st.session_state["scanner_v5_setting_max_wick"]
+min_rel = st.session_state["scanner_v5_setting_min_rel"]
+max_gap = st.session_state["scanner_v5_setting_max_gap"]
+min_score = st.session_state["scanner_v5_setting_min_score"]
+lookback = st.session_state["scanner_v5_setting_lookback"]
+do_bt = st.session_state["scanner_v5_setting_do_bt"]
+prediction_horizon = st.session_state["scanner_v5_setting_prediction_horizon"]
+min_prediction_samples = st.session_state["scanner_v5_setting_min_prediction_samples"]
+workers = st.session_state["scanner_v5_setting_workers"]
+pattern_approach_pct = st.session_state["scanner_v5_setting_pattern_approach_pct"]
+pattern_filter = st.session_state["scanner_v5_setting_pattern_filter"]
 
 p = {"min_value": min_value * 1e8, "min_price": min_price, "min_vr": min_vr, "rsi_lo": rlo, "rsi_hi": rhi,
      "close_pos": close_pos, "max_wick": max_wick, "min_rel": min_rel, "max_gap": max_gap, "min_score": min_score,
