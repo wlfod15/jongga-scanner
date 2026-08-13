@@ -69,14 +69,37 @@ html, body, [data-testid="stAppViewContainer"] { background: #f6f8fb; }
 st.title("KRX 종가매매 종목 스캐너 v5")
 st.caption("시장·업종·수급·공매도·기술 신호와 과거 동일신호 통계를 한 화면에서 확인합니다.")
 st.markdown("""
-<div style="margin:.65rem 0 1rem; padding:.85rem 1rem; border:1px solid #e45852;
-            border-left:5px solid #e45852; border-radius:.7rem; background:#fff3f2;
-            color:#c93632; font-size:clamp(.88rem,2.8vw,1rem); line-height:1.55;">
-  <strong>예상가격 계산 원리</strong><br>
-  조회 기준 종가에 과거 유사신호의 다음 거래일 시가·종가·고가·저가 분포를 적용하고,
-  ATR14 변동성을 반영해 예상 범위와 대표값을 계산합니다.<br>
-  <strong>경고:</strong> 모든 점수와 예상가격은 수익이나 가격 상승을 보장하지 않습니다.
-  실제 투자 결과에 대해 서비스 제공자는 책임지지 않으며, 반드시 참고자료로만 사용해야 합니다.
+<style>
+.top-guide {display:grid; gap:.55rem; margin:.7rem 0 .6rem;}
+.top-guide-item {display:grid; grid-template-columns:7rem 1fr; gap:.7rem; align-items:start;
+  padding:.72rem .85rem; border:1px solid #e3e7ef; border-radius:.7rem; background:#fff;}
+.top-guide-label {font-weight:750; color:#344054; white-space:nowrap; font-size:.88rem;}
+.top-guide-text {color:#667085; line-height:1.45; font-size:.86rem;}
+.top-warning {margin:0 0 1rem; padding:.78rem .9rem; border:1px solid #e45852;
+  border-left:5px solid #e45852; border-radius:.7rem; background:#fff3f2;
+  color:#c93632; font-weight:650; line-height:1.5;}
+@media (max-width:640px) {
+  .top-guide-item {grid-template-columns:1fr; gap:.2rem; padding:.7rem .8rem;}
+  .top-guide-label {font-size:.82rem;}
+  .top-guide-text, .top-warning {font-size:.78rem; line-height:1.45;}
+}
+</style>
+<div class="top-guide">
+  <div class="top-guide-item">
+    <div class="top-guide-label">🇰🇷 적용 시장</div>
+    <div class="top-guide-text">대한민국 KRX(KOSPI·KOSDAQ) 정규장 기준 데이터에만 적용됩니다.</div>
+  </div>
+  <div class="top-guide-item">
+    <div class="top-guide-label">📊 데이터 제한</div>
+    <div class="top-guide-text">신규 상장 종목이거나 과거 가격 데이터를 충분히 확인할 수 없는 경우 검색·예측 결과가 표시되지 않을 수 있습니다.</div>
+  </div>
+  <div class="top-guide-item">
+    <div class="top-guide-label">🧮 계산 방식</div>
+    <div class="top-guide-text">조회 기준 종가에 과거 유사신호의 다음 거래일 가격 분포와 ATR14 변동성을 반영해 예상 범위와 대표값을 계산합니다.</div>
+  </div>
+</div>
+<div class="top-warning">
+  ⚠️ 모든 점수와 예상가격은 수익이나 가격 상승을 보장하지 않습니다. 실제 투자 결과에 대해 서비스 제공자는 책임지지 않으며 참고자료로만 사용해야 합니다.
 </div>
 """, unsafe_allow_html=True)
 
@@ -1046,7 +1069,7 @@ with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True)
     with button_col:
         st.write("")
         move_clicked = st.form_submit_button(
-            "이 종목 분석하기",
+            "이 종목 예상가 확인하기",
             type="primary",
             use_container_width=True,
         )
