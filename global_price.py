@@ -76,26 +76,30 @@ def usdkrw_quote():
 
 
 def nxt_delayed_quotes():
-    """Best-effort official NXT page snapshot (the site labels it delayed)."""
+    """Official NXT delayed quote snapshot from its market-data JSON endpoint."""
+    session = requests.Session()
     try:
-        tables = pd.read_html("https://www.nextrade.co.kr/main.do")
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://nextrade.co.kr/menu/marketData/menuList.do",
+            "X-Requested-With": "XMLHttpRequest",
+        })
+        session.get("https://nextrade.co.kr/menu/marketData/menuList.do", timeout=8)
+        response = session.post(
+            "https://nextrade.co.kr/brdinfoTime/brdinfoTimeList.do",
+            data={"pageIndex": 1, "pageUnit": 1000}, timeout=8,
+        )
+        response.raise_for_status()
+        payload = response.json()
     except Exception:
         return {}
+
     result = {}
-    for table in tables:
-        table.columns = [str(c).strip() for c in table.columns]
-        code_col = next(
-            (c for c in table.columns if "종목코드" in c or c.lower() in {"code", "symbol"}),
-            None,
-        )
-        price_col = next((c for c in table.columns if "현재가" in c), None)
-        if not code_col or not price_col:
-            continue
-        for _, item in table.iterrows():
-            code = "".join(ch for ch in str(item[code_col]) if ch.isdigit()).zfill(6)
-            price = pd.to_numeric(str(item[price_col]).replace(",", ""), errors="coerce")
-            if len(code) == 6 and pd.notna(price):
-                result[code] = float(price)
+    for item in payload.get("brdinfoTimeList", []):
+        code = "".join(ch for ch in str(item.get("isuSrdCd", "")) if ch.isdigit()).zfill(6)
+        price = pd.to_numeric(str(item.get("curPrc", "")).replace(",", ""), errors="coerce")
+        if len(code) == 6 and pd.notna(price) and float(price) > 0:
+            result[code] = float(price)
     return result
 
 
