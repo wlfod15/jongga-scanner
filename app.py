@@ -851,6 +851,10 @@ def show_simple_prediction(row):
     """Mobile-first result used immediately after direct stock lookup."""
     context = prediction_context(row["날짜"], row.get("예측모드", "auto"))
     st.markdown(f"#### {row['종목명']} ({row['종목코드']})")
+    st.info(
+        f"**{context['구분']}** · 가격 기준: {context['기준']} · "
+        f"예측 대상: {context['대상']}\n\n{context['안내']}"
+    )
     current_price = row.get("현재가", row.get("종가", np.nan))
     current_change = row.get("현재등락률%", row.get("등락률%", np.nan))
     current_label = row.get("현재가구분", "최근 KRX 종가")
@@ -860,10 +864,6 @@ def show_simple_prediction(row):
     st.caption(
         f"가격 기준일 {row.get('현재가기준일', row.get('날짜', '-'))} · "
         f"조회 시각 {row.get('현재가조회시각', '-')} · 장중 가격은 지연될 수 있으며 실시간 체결가를 보장하지 않습니다."
-    )
-    st.info(
-        f"**{context['구분']}** · 가격 기준: {context['기준']} · "
-        f"예측 대상: {context['대상']}\n\n{context['안내']}"
     )
     prediction_ok = row.get("예측상태") == "산출"
     entry = float(row["진입가"])
