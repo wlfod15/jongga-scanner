@@ -965,32 +965,16 @@ def show_simple_prediction(row):
     prediction_ok = row.get("예측상태") == "산출"
     entry = float(row["진입가"])
 
-    if row.get("예측모드") == "today":
-        today_open = row.get("오늘시가", np.nan)
-        open_low_pct = row.get("예상시가하단%", np.nan)
-        open_high_pct = row.get("예상시가상단%", np.nan)
-        expected_open = (
-            entry * (1 + (float(open_low_pct) + float(open_high_pct)) / 200)
-            if prediction_ok and pd.notna(open_low_pct) and pd.notna(open_high_pct) else np.nan
-        )
-        open_gap = (
-            (float(today_open) / expected_open - 1) * 100
-            if pd.notna(today_open) and pd.notna(expected_open) and expected_open else np.nan
-        )
-        price_col, open_col, gap_col = st.columns(3)
-        price_col.metric(current_label, price_text, change_text)
-        open_col.metric("오늘 시가", "데이터 없음" if pd.isna(today_open) else f"{float(today_open):,.0f}원")
-        gap_col.metric("예상 대비 시가 괴리율", "표본 부족" if pd.isna(open_gap) else f"{open_gap:+.2f}%")
-        st.caption(
-            "시가 괴리율은 실제 오늘 시가와 예상 시가 범위의 중앙 대표값을 비교합니다. "
-            "양수는 예상보다 높게, 음수는 예상보다 낮게 출발했다는 뜻입니다."
-        )
-    else:
-        st.metric(current_label, price_text, change_text)
-
-    st.caption(
-        f"가격 기준일 {row.get('현재가기준일', row.get('날짜', '-'))} · "
-        f"조회 시각 {row.get('현재가조회시각', '-')} · 장중 가격은 지연될 수 있으며 실시간 체결가를 보장하지 않습니다."
+    today_open = row.get("오늘시가", np.nan)
+    open_low_pct = row.get("예상시가하단%", np.nan)
+    open_high_pct = row.get("예상시가상단%", np.nan)
+    expected_open = (
+        entry * (1 + (float(open_low_pct) + float(open_high_pct)) / 200)
+        if prediction_ok and pd.notna(open_low_pct) and pd.notna(open_high_pct) else np.nan
+    )
+    open_gap = (
+        (float(today_open) / expected_open - 1) * 100
+        if pd.notna(today_open) and pd.notna(expected_open) and expected_open else np.nan
     )
     horizon = next((int(k.split("일내")[0]) for k in row.keys() if "일내+3%도달%" in k), 5)
     reach_key = f"{horizon}일내+3%도달%"
@@ -1042,6 +1026,29 @@ def show_simple_prediction(row):
     st.caption(
         f"표시된 기준 가격으로부터 {context['대상']} 가격을 추정합니다. 예상 고가·저가는 "
         "확정가격이 아니라 과거 유사신호 분포와 ATR14를 이용한 대표 추정값입니다."
+    )
+
+    if row.get("예측모드") == "today":
+        price_col, open_col, gap_col = st.columns(3)
+        price_col.metric(current_label, price_text, change_text)
+        open_col.metric(
+            "오늘 시가",
+            "금일 정규장 오픈 대기 중" if pd.isna(today_open) else f"{float(today_open):,.0f}원",
+        )
+        gap_col.metric(
+            "예상 대비 시가 괴리율",
+            "시가 확인 후 계산" if pd.isna(today_open) else "표본 부족" if pd.isna(open_gap) else f"{open_gap:+.2f}%",
+        )
+        st.caption(
+            "시가 괴리율은 실제 오늘 시가와 예상 시가 범위의 중앙 대표값을 비교합니다. "
+            "양수는 예상보다 높게, 음수는 예상보다 낮게 출발했다는 뜻입니다."
+        )
+    else:
+        st.metric(current_label, price_text, change_text)
+
+    st.caption(
+        f"가격 기준일 {row.get('현재가기준일', row.get('날짜', '-'))} · "
+        f"조회 시각 {row.get('현재가조회시각', '-')} · 장중 가격은 지연될 수 있으며 실시간 체결가를 보장하지 않습니다."
     )
 
     st.markdown(f"### {context['확률접두어']} 가능성")
@@ -1170,8 +1177,8 @@ search_mode = st.radio(
 )
 search_mode_help = {
     "오늘 종가 예측": (
-        "평일 09:00~15:40 장중에만 사용합니다. "
-        "미완성 당일 일봉을 제외하고 직전 확정 종가로 오늘 종가를 예측합니다."
+        "평일 개장 전 또는 09:00~15:40 장중에 사용합니다. 개장 전에는 오늘 시가를 오픈 대기 중으로 표시하고, "
+        "직전 확정 종가를 기준으로 오늘 종가를 예측합니다."
     ),
     "익일 예측": (
         "다음 KRX 거래일의 가격을 예측합니다. "
@@ -1246,8 +1253,10 @@ if move_clicked and len(matches):
         st.session_state["scanner_v5_direct_notice"] = "✅ 검증이 완료되었습니다. 결과를 아래에서 확인하세요."
         direct_status.success(st.session_state["scanner_v5_direct_notice"])
     else:
-        if search_mode == "오늘 종가 예측" and not krx_market_is_open():
-            st.warning("오늘 종가 예측은 평일 09:00~15:40 장중에만 사용할 수 있습니다. 장외에는 익일 예측을 선택해주세요.")
+        now_krx = datetime.now(ZoneInfo("Asia/Seoul"))
+        after_regular_close = (now_krx.hour, now_krx.minute) > (15, 40)
+        if search_mode == "오늘 종가 예측" and (now_krx.weekday() >= 5 or after_regular_close):
+            st.warning("오늘 종가 예측은 평일 개장 전 또는 09:00~15:40 장중에 사용할 수 있습니다. 장 종료 후에는 익일 예측을 선택해주세요.")
             st.stop()
         with st.spinner("종목 분석 중..."):
             forecast_mode = "today" if search_mode == "오늘 종가 예측" else "next"
