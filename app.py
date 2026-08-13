@@ -189,11 +189,7 @@ if not st.session_state.get("scanner_v5_terms_accepted", False):
     st.stop()
 
 
-st.title("KRX 종가매매 종목 스캐너 v5")
-st.markdown(
-    '<div style="margin-top:-.65rem; color:#697386; font-size:.82rem; font-weight:650;">by. 바빠맘</div>',
-    unsafe_allow_html=True,
-)
+st.title("KRX 종가매매 종목 스캐너 v5 by. 바빠맘")
 st.caption("시장·업종·수급·공매도·기술 신호와 과거 동일신호 통계를 한 화면에서 확인합니다.")
 st.markdown("""
 <style>
