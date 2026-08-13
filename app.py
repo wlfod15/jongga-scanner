@@ -151,6 +151,43 @@ def render_scan_settings(prefix):
     st.caption("잘못 변경한 경우 시장·지표·조회 조건을 처음 설정으로 되돌립니다.")
 
 
+@st.dialog("이용 전 확인", width="large")
+def show_usage_consent():
+    st.markdown(
+        """
+        본 프로그램은 테스트 목적으로 제작된 임시 서비스입니다. 아래 내용을 각각 확인해 주세요.
+        """
+    )
+    consent_1 = st.checkbox(
+        "1. 본 서비스는 투자자문이나 매수·매도 추천이 아니며, 과거 데이터를 활용한 학습·참고용 분석 도구임을 확인했습니다.",
+        key="scanner_v5_consent_investment",
+    )
+    consent_2 = st.checkbox(
+        "2. 예상가격·확률·점수는 실제 결과나 수익을 보장하지 않으며, 모든 투자 판단과 손익의 책임은 이용자 본인에게 있음을 확인했습니다.",
+        key="scanner_v5_consent_responsibility",
+    )
+    consent_3 = st.checkbox(
+        "3. 테스트용 임시 프로그램으로서 데이터 지연·누락·오류가 발생할 수 있고, 서비스가 예고 없이 변경되거나 중단될 수 있음을 확인했습니다.",
+        key="scanner_v5_consent_service",
+    )
+    all_agreed = consent_1 and consent_2 and consent_3
+    st.caption("세 항목에 모두 동의해야 서비스를 이용할 수 있습니다.")
+    if st.button(
+        "동의하고 시작하기",
+        type="primary",
+        use_container_width=True,
+        disabled=not all_agreed,
+        key="scanner_v5_accept_terms",
+    ):
+        st.session_state["scanner_v5_terms_accepted"] = True
+        st.rerun()
+
+
+if not st.session_state.get("scanner_v5_terms_accepted", False):
+    show_usage_consent()
+    st.stop()
+
+
 st.title("KRX 종가매매 종목 스캐너 v5")
 st.markdown(
     '<div style="margin-top:-.65rem; color:#697386; font-size:.82rem; font-weight:650;">by. 바빠맘</div>',
