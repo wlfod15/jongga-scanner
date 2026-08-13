@@ -642,7 +642,10 @@ def show_accumulation(row, summary):
     c1, c2 = st.columns(2)
     c1.metric("매집 흔적 점수", f"{result['점수']}/100")
     c2.metric("현재 단계", result["단계"])
-    st.success(f"근거: {result['근거']}") if result["점수"] >= 65 else st.info(f"근거: {result['근거']}")
+    if result["점수"] >= 65:
+        st.success(f"근거: {result['근거']}")
+    else:
+        st.info(f"근거: {result['근거']}")
     st.caption(f"위험 신호: {result['위험']}")
     st.caption("※ 거래량·가격·수급의 정황 점수이며 특정 세력이나 계좌의 진입을 확인한 결과가 아닙니다.")
 
