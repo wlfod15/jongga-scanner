@@ -1080,6 +1080,18 @@ def show_simple_prediction(row):
     st.caption("장중 가격은 지연될 수 있으며 실시간 체결가를 보장하지 않습니다.")
 
     st.markdown(f"### {context['확률접두어']} 가능성")
+    st.markdown(
+        """
+        <div style="margin:.1rem 0 .8rem; color:#697386;
+                    font-size:clamp(.72rem,2.4vw,.82rem); line-height:1.5;">
+          각 수치는 현재 조건과 비슷한 과거 유사신호에서 상승·갭상승·목표가 또는 손절선 도달이
+          실제로 발생한 비율입니다.<br>
+          <span style="color:#a94a4a;">※ 과거 통계에 기반한 참고자료이며 실제 미래 확률이나 수익을
+          보장하지 않습니다. 시장 상황에 따라 결과가 달라질 수 있습니다.</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(f"{context['확률접두어']} 상승확률", probability("익일승률%"))
     c2.metric("갭상승확률", probability("갭상승확률%"))
