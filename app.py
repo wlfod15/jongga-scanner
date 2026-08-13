@@ -326,13 +326,15 @@ def ranking_score(stock_score, market_score, sector_score, bt, rr):
     return round(.45 * stock_score + .15 * market_score + .10 * sector_score + .15 * win + .10 * rr_score + .05 * sample_score, 1)
 
 
-def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, market_data):
+def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, market_data, forecast_mode="auto"):
     try:
         raw = fdr.DataReader(symbol, start)
         now = datetime.now(ZoneInfo("Asia/Seoul"))
         market_hours = now.weekday() < 5 and (9, 0) <= (now.hour, now.minute) <= (15, 40)
-        if market_hours and len(raw) and pd.Timestamp(raw.index[-1]).date() == now.date():
-            raw = raw.iloc[:-1]  # 장중 미완성 일봉 제외: 직전 확정 종가로 오늘을 예측
+        latest_is_today = len(raw) and pd.Timestamp(raw.index[-1]).date() == now.date()
+        use_previous_close = forecast_mode == "today" or (forecast_mode == "auto" and market_hours)
+        if use_previous_close and latest_is_today:
+            raw = raw.iloc[:-1]  # 오늘 종가 예측은 장중 미완성 일봉을 제외
         df = prep(raw)
         if len(df) < 80: return None
         mr = benchmark(market, start)
@@ -346,6 +348,7 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
         decision = "매수후보" if f["hard"] and f["score"] >= p["min_score"] else "조건근접" if f["score"] >= p["min_score"] - 20 or len(f["failures"]) <= 3 else "제외"
         r = df.iloc[-1]
         out = {"종목코드": symbol, "종목명": name, "시장": market, "업종분류": cat, "날짜": df.index[-1].strftime("%Y-%m-%d"),
+               "예측모드": forecast_mode,
                "종가": round(float(r["Close"])), "등락률%": round(float(r["RET1"]), 2), "종목점수": f["score"],
                "시장환경": market_score, "업종환경": sector_score, "종합점수": combined, "판정": decision,
                "탈락사유": "없음" if not f["failures"] else " / ".join(f["failures"]), "유형": f["type"], "RSI14": round(float(r["RSI"]), 1),
@@ -572,7 +575,7 @@ def show_detail(row):
     c3.metric("CVD Proxy", row.get("CVD Proxy", "-"))
     c4.metric("RSI(14)", f"{row.get('RSI14', np.nan):.1f}")
 
-    detail_context = prediction_context(row["날짜"])
+    detail_context = prediction_context(row["날짜"], row.get("예측모드", "auto"))
     st.markdown(f"#### {detail_context['구분']} 통계")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(f"{detail_context['확률접두어']} 상승 확률", probability("익일승률%"))
@@ -651,26 +654,33 @@ def show_detail(row):
             st.warning(f"60분봉 추정 패턴을 불러오지 못했습니다: {exc}")
 
 
-def prediction_context(price_date):
+def krx_market_is_open():
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    return now.weekday() < 5 and (9, 0) <= (now.hour, now.minute) <= (15, 40)
+
+
+def prediction_context(price_date, forecast_mode="auto"):
     now = datetime.now(ZoneInfo("Asia/Seoul"))
     basis = pd.Timestamp(price_date).date()
-    market_hours = now.weekday() < 5 and (9, 0) <= (now.hour, now.minute) <= (15, 40)
-    if market_hours:
+    market_hours = krx_market_is_open()
+    if forecast_mode == "today" or (forecast_mode == "auto" and market_hours):
         return {
             "구분": "오늘 종가 예측", "제목": "오늘 예상 가격", "확률접두어": "오늘",
             "대상": "오늘 장 마감", "기준": f"{basis:%Y-%m-%d} 확정 종가",
-            "안내": "장중 미완성 일봉은 제외하고 직전 확정 종가로 오늘 가격을 추정합니다.",
+            "안내": "장중 미완성 일봉을 제외하고 직전 확정 종가로 오늘 가격을 추정합니다.",
         }
+    temporary = forecast_mode == "next" and market_hours
     return {
-        "구분": "익일 예측", "제목": "익일 예상 가격", "확률접두어": "익일",
-        "대상": "다음 KRX 거래일", "기준": f"{basis:%Y-%m-%d} 확정 종가",
-        "안내": "가장 최근 확정 종가로 다음 KRX 거래일 가격을 추정합니다.",
+        "구분": "익일 예측 (장중 임시)" if temporary else "익일 예측",
+        "제목": "익일 예상 가격", "확률접두어": "익일",
+        "대상": "다음 KRX 거래일", "기준": f"{basis:%Y-%m-%d} {'장중 가격(미확정)' if temporary else '확정 종가'}",
+        "안내": "장중 데이터로 계산한 임시 익일 예측이며 장 마감 후 값이 달라질 수 있습니다."
+                if temporary else "가장 최근 확정 종가로 다음 KRX 거래일 가격을 추정합니다.",
     }
-
 
 def show_simple_prediction(row):
     """Mobile-first result used immediately after direct stock lookup."""
-    context = prediction_context(row["날짜"])
+    context = prediction_context(row["날짜"], row.get("예측모드", "auto"))
     st.markdown(f"#### {row['종목명']} ({row['종목코드']})")
     st.info(
         f"**{context['구분']}** · 가격 기준: {context['기준']} · "
@@ -736,27 +746,6 @@ def show_simple_prediction(row):
     c2.metric("갭상승확률", probability("갭상승확률%"))
     c3.metric(f"{horizon}일 내 +3%", probability(reach_key))
     c4.metric("손절선 도달확률", probability("초기손절도달확률%"))
-    c1, c2 = st.columns(2)
-    c1.metric("예측 신뢰도", row.get("신뢰도", "표본 부족"))
-    c2.metric("유사표본수", f"{int(row.get('표본수', 0) or 0)}회")
-
-    st.markdown("### 핵심 지표")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("종합점수", f"{row['종합점수']:.1f}/100", row["판정"])
-    c2.metric("OBV", row.get("OBV", "-"))
-    c3.metric("CVD Proxy", row.get("CVD Proxy", "-"))
-    c4.metric("RSI(14)", f"{row.get('RSI14', np.nan):.1f}")
-
-    with st.spinner("수급·공매도 데이터 확인 중..."):
-        summary, _, _ = flow_and_short(row["종목코드"])
-    foreign = summary.get("외국인5일순매수(억원)", np.nan)
-    institution = summary.get("기관5일순매수(억원)", np.nan)
-    short_ratio = summary.get("공매도잔고비중%", summary.get("최근공매도비중%", np.nan))
-    st.markdown("### 수급")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("외국인 5일", "조회 불가" if pd.isna(foreign) else f"{foreign:+,.1f}억원")
-    c2.metric("기관 5일", "조회 불가" if pd.isna(institution) else f"{institution:+,.1f}억원")
-    c3.metric("공매도 비중", "KRX 연결 필요" if pd.isna(short_ratio) else f"{short_ratio:.2f}%")
 
     st.markdown("### 진입·손절·익절")
     c1, c2, c3, c4 = st.columns(4)
@@ -764,25 +753,6 @@ def show_simple_prediction(row):
     c2.metric("손절가", f"{row['초기손절']:,.0f}원", f"-{row['손절률%']:.2f}%")
     c3.metric("1차 익절가", f"{row['1차익절(+10%)']:,.0f}원", "+10%")
     c4.metric("2차 익절가", f"{row['2차익절(+20%)']:,.0f}원", "+20%")
-
-    st.markdown("### 차트")
-    try:
-        st.plotly_chart(chart(row["종목코드"], row), use_container_width=True)
-    except Exception as exc:
-        st.warning(f"차트를 불러오지 못했습니다: {exc}")
-
-    st.markdown("### 60분봉 추정 패턴")
-    pattern_ok = row.get("추정 패턴 상태") == "산출"
-    rebound = row.get("추정 반등가", np.nan)
-    next_target = row.get("다음 목표가", np.nan)
-    rebound_text = f"{float(rebound):,.0f}원" if pattern_ok and pd.notna(rebound) else "표본 부족"
-    target_text = f"{float(next_target):,.0f}원" if pattern_ok and pd.notna(next_target) else "표본 부족"
-    stage_text = row.get("현재 패턴 단계", "표본 부족") if pattern_ok else row.get("추정 패턴 상태", "표본 부족")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("추정 반등가", rebound_text)
-    c2.metric("현재 패턴 단계", stage_text)
-    c3.metric("다음 목표가", target_text)
-    st.caption("검증 중인 독립 가설이며 기존 종가매매 추천 점수에는 반영되지 않습니다.")
 
     if st.button("자세히 보기", use_container_width=True):
         with st.spinner("상세 데이터 불러오는 중..."):
@@ -873,7 +843,25 @@ st.caption("최종순위점수는 종목 45%·시장 15%·업종 10%·과거 5�
 
 L = listings()
 st.subheader("직접 종목검색")
-search_mode = st.radio("조회 방식", ["오늘 예측", "과거 날짜 검증"], horizontal=True)
+search_mode = st.radio(
+    "조회 방식",
+    ["오늘 종가 예측", "익일 예측", "과거 날짜 검증"],
+    horizontal=True,
+)
+search_mode_help = {
+    "오늘 종가 예측": (
+        "평일 09:00~15:40 장중에만 사용합니다. "
+        "미완성 당일 일봉을 제외하고 직전 확정 종가로 오늘 종가를 예측합니다."
+    ),
+    "익일 예측": (
+        "다음 KRX 거래일의 가격을 예측합니다. "
+        "장중에 조회하면 미완성 당일 데이터를 사용한 임시 익일 예측으로 표시됩니다."
+    ),
+    "과거 날짜 검증": (
+        "선택한 과거 날짜의 종가까지만 사용해 다음 거래일 예측값과 실제 가격을 비교합니다."
+    ),
+}
+st.caption(f"ℹ️ {search_mode_help[search_mode]}")
 selected_validation_date = None
 if search_mode == "과거 날짜 검증":
     selected_validation_date = st.date_input(
@@ -899,8 +887,17 @@ if move_clicked and len(matches):
             validation = validate_at_date(r.Code, selected_validation_date, mkt, p, lookback)
         st.session_state["scanner_v5_validation"] = {"종목명": r.Name, "종목코드": r.Code, "결과": validation}
     else:
+        if search_mode == "오늘 종가 예측" and not krx_market_is_open():
+            st.warning("오늘 종가 예측은 평일 09:00~15:40 장중에만 사용할 수 있습니다. 장외에는 익일 예측을 선택해주세요.")
+            st.stop()
         with st.spinner("종목 분석 중..."):
-            result = analyze(r.Code, r.Name, mkt, sec, (date.today() - timedelta(days=lookback)).isoformat(), p, do_bt, market_score, market_data)
+            forecast_mode = "today" if search_mode == "오늘 종가 예측" else "next"
+            result = analyze(
+                r.Code, r.Name, mkt, sec,
+                (date.today() - timedelta(days=lookback)).isoformat(),
+                p, do_bt, market_score, market_data,
+                forecast_mode=forecast_mode,
+            )
         if result:
             st.session_state["scanner_v5_selected"] = result
             st.session_state["scanner_v5_selected_mode"] = "simple"
