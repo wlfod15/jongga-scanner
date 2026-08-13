@@ -1530,7 +1530,7 @@ def show_simple_prediction(row):
         for title, value in forecast_cards
     )
     st.markdown(f'<div class="forecast-stack">{cards}</div>', unsafe_allow_html=True)
-    if has_live_comparison:
+    if row.get("실시간보정상태") == "산출":
         st.caption(
             f"실시간 보정 기준 {row.get('실시간보정시각', '-')} · "
             f"참고지표: {row.get('실시간참고지표', '-')}. 새로고침 시 최신 지표로 다시 계산됩니다."
