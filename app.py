@@ -940,12 +940,19 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
                "탈락사유": "없음" if not f["failures"] else " / ".join(f["failures"]), "유형": f["type"], "RSI14": round(float(r["RSI"]), 1),
                "거래량배수": round(f["vr"], 2), "종가위치%": round(f["close_pos"], 1), "윗꼬리%": round(f["wick"], 1),
                "시장대비강도%p": round(f["rel"], 2), "OBV": "충족" if f["obv"] else "미충족", "CVD Proxy": "충족" if f["cvd"] else "미충족"}
-        structure = analyze_daily_structure(raw, {
-            "swing_window": int(p.get("swing_window", 3)),
-            "swing_atr_multiple": float(p.get("swing_atr_multiple", 1.0)),
-            "swing_min_change_pct": float(p.get("swing_min_change_pct", 2.0)),
-        })
-        structure["차트 구조 점수"] = calculate_structure_score(structure) if structure.get("차트구조") != "데이터 부족" else np.nan
+        try:
+            structure = analyze_daily_structure(raw, {
+                "swing_window": int(p.get("swing_window", 3)),
+                "swing_atr_multiple": float(p.get("swing_atr_multiple", 1.0)),
+                "swing_min_change_pct": float(p.get("swing_min_change_pct", 2.0)),
+            })
+            structure["차트 구조 점수"] = calculate_structure_score(structure) if structure.get("차트구조") != "데이터 부족" else np.nan
+        except Exception as structure_exc:
+            structure = {
+                "차트구조": "계산 오류", "차트 구조 점수": np.nan,
+                "구름위치": "데이터 없음", "HL/HH": "데이터 없음", "BB상태": "데이터 없음",
+                "구조판정근거": f"구조 모듈 오류: {type(structure_exc).__name__}",
+            }
         out.update(structure)
         out.update(bt); out.update(levels)
         pattern, _ = rebound_snapshot(symbol, market, p.get("pattern_approach_pct", 3.0))
