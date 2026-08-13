@@ -736,6 +736,10 @@ def apply_nxt_premarket_open_signal(forecast, symbol, krx_close, checked_at=None
     blend = .80
     adjusted_open = (1 - blend) * base_open + blend * nxt_gap
     shift = adjusted_open - base_open
+    price_keys = (
+        "예상시가평균%", "예상고가%", "예상저가%", "익일평균%",
+        "예상시가하단%", "예상시가상단%", "예상종가하단%", "예상종가상단%",
+    )
     for key in price_keys:
         original = result.get(f"NXT보정전_{key}", np.nan)
         if pd.notna(original):
