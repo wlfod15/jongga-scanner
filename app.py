@@ -11,10 +11,12 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 from global_price import after_hours_snapshot, load_product_map, nxt_delayed_quotes, usdkrw_quote
+from daily_structure import analyze_daily_structure
 from market_sources import naver_investor_flow
 from market_ui import extract_close, impact_groups, last_metrics, legacy_market_score, market_table
 from night_futures import kospi200_night_quote
 from rebound_pattern import analyze_rebound_pattern, normalize_intraday, pattern_filter_mask
+from structure_score import calculate_structure_score
 
 try:
     from pykrx import stock as krx_stock
@@ -86,6 +88,9 @@ SCAN_SETTING_DEFAULTS = {
     "workers": 5,
     "pattern_approach_pct": 3.0,
     "pattern_filter": "전체",
+    "swing_window": 3,
+    "swing_atr_multiple": 1.0,
+    "swing_min_change_pct": 2.0,
 }
 for setting_name, default_value in SCAN_SETTING_DEFAULTS.items():
     canonical_key = f"scanner_v5_setting_{setting_name}"
@@ -143,6 +148,10 @@ def render_scan_settings(prefix):
          "+50%선 돌파 종목", "다음 목표가까지 상승여력 10% 이상",
          "거래량 증가 + 반등선 돌파", "거래량 증가 + 33%선 돌파"],
     )
+    st.caption("차트 구조 판정 설정")
+    setting_widget(prefix, "swing_window", st.slider, "일봉 Swing 좌우 확인 봉", min_value=2, max_value=7)
+    setting_widget(prefix, "swing_atr_multiple", st.slider, "Swing 최소 ATR 배수", min_value=.5, max_value=3., step=.25)
+    setting_widget(prefix, "swing_min_change_pct", st.slider, "Swing 최소 가격변화(%)", min_value=.5, max_value=10., step=.5)
     st.button(
         "↺ 필터 기본값으로 초기화",
         key=f"{prefix}_reset_scan_settings",
@@ -842,6 +851,14 @@ def ranking_score(stock_score, market_score, sector_score, bt, rr):
 def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, market_data, forecast_mode="auto"):
     try:
         raw = fdr.DataReader(symbol, start)
+        required_columns = {"Open", "High", "Low", "Close", "Volume"}
+        if raw is None or len(raw) < 130 or not required_columns.issubset(raw.columns):
+            # A short user lookback is enough for the legacy signal but not MA120,
+            # and the combined KRX endpoint can occasionally return a partial set.
+            retry_start = (date.today() - timedelta(days=900)).isoformat()
+            retry = fdr.DataReader(symbol, retry_start)
+            if retry is not None and len(retry) > len(raw if raw is not None else []):
+                raw = retry
         latest_prices = pd.to_numeric(raw["Close"], errors="coerce").dropna()
         current_price = float(latest_prices.iloc[-1]) if len(latest_prices) else np.nan
         current_change = (
@@ -899,6 +916,13 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
                "탈락사유": "없음" if not f["failures"] else " / ".join(f["failures"]), "유형": f["type"], "RSI14": round(float(r["RSI"]), 1),
                "거래량배수": round(f["vr"], 2), "종가위치%": round(f["close_pos"], 1), "윗꼬리%": round(f["wick"], 1),
                "시장대비강도%p": round(f["rel"], 2), "OBV": "충족" if f["obv"] else "미충족", "CVD Proxy": "충족" if f["cvd"] else "미충족"}
+        structure = analyze_daily_structure(raw, {
+            "swing_window": int(p.get("swing_window", 3)),
+            "swing_atr_multiple": float(p.get("swing_atr_multiple", 1.0)),
+            "swing_min_change_pct": float(p.get("swing_min_change_pct", 2.0)),
+        })
+        structure["차트 구조 점수"] = calculate_structure_score(structure) if structure.get("차트구조") != "데이터 부족" else np.nan
+        out.update(structure)
         out.update(bt); out.update(levels)
         pattern, _ = rebound_snapshot(symbol, market, p.get("pattern_approach_pct", 3.0))
         out.update(pattern)
@@ -1401,8 +1425,13 @@ def show_detail(row):
 
     with st.expander("자세히 보기 — 탈락사유·전체 지표·차트·일별 수급"):
         st.write(f"**판정:** {row['판정']}  |  **탈락사유:** {row['탈락사유']}")
-        details = {k: row.get(k) for k in ["종목점수", "시장환경", "업종환경", "최종순위점수", "업종분류", "유형", "RSI14", "거래량배수", "종가위치%", "윗꼬리%", "시장대비강도%p", "OBV", "CVD Proxy", "표본수", "신뢰도", "유사도중앙거리", "익일승률%", "갭상승확률%", "갭하락확률%", "보합출발확률%", "예상시가하단%", "예상시가상단%", "예상종가하단%", "예상종가상단%", "예상고가%", "예상저가%", reach_key, "초기손절도달확률%", "평균MAE%", "손절률%", "1차손익비R", "2차손익비R"]}
+        details = {k: row.get(k) for k in ["종목점수", "차트구조", "차트 구조 점수", "구름위치", "구름이격상태", "HL/HH", "BB상태", "거래량구조", "시장환경", "업종환경", "최종순위점수", "업종분류", "유형", "RSI14", "거래량배수", "종가위치%", "윗꼬리%", "시장대비강도%p", "OBV", "CVD Proxy", "표본수", "신뢰도", "유사도중앙거리", "익일승률%", "갭상승확률%", "갭하락확률%", "보합출발확률%", "예상시가하단%", "예상시가상단%", "예상종가하단%", "예상종가상단%", "예상고가%", "예상저가%", reach_key, "초기손절도달확률%", "평균MAE%", "손절률%", "1차손익비R", "2차손익비R"]}
         st.dataframe(pd.DataFrame([details]), use_container_width=True, hide_index=True)
+        st.markdown("#### 차트 구조 판정 근거")
+        st.write(row.get("구조판정근거", "데이터 없음"))
+        structure_raw = row.get("구조원본값")
+        if isinstance(structure_raw, dict):
+            st.dataframe(pd.DataFrame([structure_raw]), use_container_width=True, hide_index=True)
         if summary:
             st.markdown("#### 외국인·기관 수급 및 공매도")
             st.dataframe(pd.DataFrame([summary]), use_container_width=True, hide_index=True)
@@ -1682,6 +1711,9 @@ def current_price_label(row):
 
 def scanner_table(frame):
     data = frame.copy()
+    core = ["종목코드", "종목명", "차트구조", "차트 구조 점수", "구름위치", "HL/HH", "BB상태", "NXT갭", "NXT유지력", "NXT패턴"]
+    ordered = [c for c in core if c in data.columns] + [c for c in data.columns if c not in core]
+    data = data[ordered]
     price_column = "현재가 (등락률)"
     if price_column in data.columns:
         hidden = {"현재가", "현재등락률%", "종가", "등락률%"}
@@ -1751,12 +1783,17 @@ min_prediction_samples = st.session_state["scanner_v5_setting_min_prediction_sam
 workers = st.session_state["scanner_v5_setting_workers"]
 pattern_approach_pct = st.session_state["scanner_v5_setting_pattern_approach_pct"]
 pattern_filter = st.session_state["scanner_v5_setting_pattern_filter"]
+swing_window = st.session_state["scanner_v5_setting_swing_window"]
+swing_atr_multiple = st.session_state["scanner_v5_setting_swing_atr_multiple"]
+swing_min_change_pct = st.session_state["scanner_v5_setting_swing_min_change_pct"]
 
 p = {"min_value": min_value * 1e8, "min_price": min_price, "min_vr": min_vr, "rsi_lo": rlo, "rsi_hi": rhi,
      "close_pos": close_pos, "max_wick": max_wick, "min_rel": min_rel, "max_gap": max_gap, "min_score": min_score,
      "lookback": lookback, "prediction_horizon": prediction_horizon,
      "min_prediction_samples": min_prediction_samples}
 p["pattern_approach_pct"] = pattern_approach_pct
+p.update({"swing_window": swing_window, "swing_atr_multiple": swing_atr_multiple,
+          "swing_min_change_pct": swing_min_change_pct})
 
 with st.spinner("시장환경 확인 중..."):
     market_score, market_label, market_data, market_reasons = market_environment()
