@@ -946,24 +946,6 @@ with st.spinner("시장환경 확인 중..."):
     market_score, market_label, market_data, market_reasons = market_environment()
 
 L = listings()
-st.subheader("직접 종목검색")
-st.caption("종목명이나 종목코드를 입력해 바로 분석해보세요.")
-with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True):
-    search_col, button_col = st.columns([4, 1])
-    with search_col:
-        query = st.text_input(
-            "종목명 직접 입력",
-            placeholder="여기에 원하는 종목명을 입력하세요",
-            help="PC에서는 종목명을 입력한 뒤 Enter를 눌러도 바로 검색됩니다.",
-        )
-    with button_col:
-        st.write("")
-        move_clicked = st.form_submit_button(
-            "이 종목 분석하기",
-            type="primary",
-            use_container_width=True,
-        )
-
 search_mode = st.radio(
     "조회 방식",
     ["오늘 종가 예측", "익일 예측", "과거 날짜 검증"],
@@ -989,6 +971,24 @@ if search_mode == "과거 날짜 검증":
         "기준 날짜", value=date.today() - timedelta(days=1),
         min_value=date.today() - timedelta(days=730), max_value=date.today() - timedelta(days=1),
         help="선택한 날의 종가까지 알려졌다고 가정해 다음 거래일 종가를 예측합니다.")
+
+st.subheader("직접 종목검색")
+st.caption("종목명이나 종목코드를 입력해 바로 분석해보세요.")
+with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True):
+    search_col, button_col = st.columns([4, 1])
+    with search_col:
+        query = st.text_input(
+            "종목명 직접 입력",
+            placeholder="여기에 원하는 종목명을 입력하세요",
+            help="PC에서는 종목명을 입력한 뒤 Enter를 눌러도 바로 검색됩니다.",
+        )
+    with button_col:
+        st.write("")
+        move_clicked = st.form_submit_button(
+            "이 종목 분석하기",
+            type="primary",
+            use_container_width=True,
+        )
 
 matches = pd.DataFrame()
 if query and len(L):
