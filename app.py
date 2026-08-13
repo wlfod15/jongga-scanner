@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
+import unicodedata
 
 import FinanceDataReader as fdr
 import numpy as np
@@ -617,12 +618,28 @@ def validate_at_date(symbol, selected_date, market, p, lookback_days):
 
 
 # ── 종목 목록, 수급, 공매도 ─────────────────────────────────────────
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False)
 def listings():
+    x = pd.DataFrame()
     try:
         x = fdr.StockListing("KRX").copy()
     except Exception:
-        x = pd.DataFrame()
+        pass
+    # The combined KRX endpoint occasionally returns an empty frame even while
+    # the separate market endpoints remain available.
+    if x.empty:
+        frames = []
+        for market_name in ("KOSPI", "KOSDAQ"):
+            try:
+                market_frame = fdr.StockListing(market_name).copy()
+                if not market_frame.empty:
+                    if "Market" not in market_frame.columns:
+                        market_frame["Market"] = market_name
+                    frames.append(market_frame)
+            except Exception:
+                continue
+        if frames:
+            x = pd.concat(frames, ignore_index=True, sort=False)
     if x.empty and PYKRX_OK:
         try:
             tickers = krx_stock.get_market_ticker_list(market="ALL")
@@ -631,8 +648,10 @@ def listings():
             x = pd.DataFrame(columns=["Code", "Name"])
     code_col = next((c for c in ("Code", "Symbol") if c in x.columns), None)
     if not code_col or "Name" not in x.columns: return pd.DataFrame()
-    x[code_col] = x[code_col].astype(str).str.zfill(6)
-    return x.rename(columns={code_col: "Code"})
+    x[code_col] = x[code_col].astype(str).str.extract(r"(\d+)", expand=False).fillna("").str.zfill(6)
+    x["Name"] = x["Name"].astype(str).map(lambda value: unicodedata.normalize("NFC", value).strip())
+    x = x[(x[code_col].str.len() == 6) & x["Name"].ne("")]
+    return x.rename(columns={code_col: "Code"}).drop_duplicates("Code").reset_index(drop=True)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -1399,12 +1418,15 @@ with st.form("scanner_v5_stock_lookup_form", clear_on_submit=False, enter_to_sub
     )
 
 if find_stock_clicked:
-    normalized_query = str(search_query).strip()
+    normalized_query = unicodedata.normalize("NFC", str(search_query)).strip()
     stock_options = []
     if len(L) and len(normalized_query) >= 2:
         searchable = L.copy()
         searchable["Code"] = searchable["Code"].astype(str).str.extract(r"(\d+)", expand=False).fillna("").str.zfill(6)
-        name_match = searchable["Name"].astype(str).str.contains(normalized_query, case=False, regex=False, na=False)
+        searchable["검색용종목명"] = searchable["Name"].astype(str).map(
+            lambda value: unicodedata.normalize("NFC", value).casefold()
+        )
+        name_match = searchable["검색용종목명"].str.contains(normalized_query.casefold(), regex=False, na=False)
         code_match = searchable["Code"].str.contains(normalized_query, regex=False, na=False)
         search_results = searchable[name_match | code_match].sort_values(["Name", "Code"]).head(50)
         stock_options = [f"{row['Name']} ({row['Code']})" for _, row in search_results.iterrows()]
@@ -1421,9 +1443,12 @@ if stock_options:
         key="scanner_v5_stock_search_result",
         help="입력한 검색어와 일치하는 종목입니다.",
     )
-elif submitted_query and len(submitted_query) >= 2:
+elif submitted_query and len(submitted_query) >= 2 and len(L):
     selected_stock = ""
     st.caption("일치하는 KRX 종목이 없습니다.")
+elif submitted_query and not len(L):
+    selected_stock = ""
+    st.warning("KRX 종목 목록을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.")
 else:
     selected_stock = ""
     st.caption("두 글자 이상 입력한 뒤 ‘종목 찾기’를 누르세요.")
