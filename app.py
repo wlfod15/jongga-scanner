@@ -693,6 +693,38 @@ def apply_stock_specific_open_signal(forecast, symbol, krx_history):
     return result
 
 
+def apply_nxt_premarket_open_signal(forecast, symbol, krx_close, checked_at=None):
+    """Use the delayed NXT premarket quote as the strongest live KRX-open reference."""
+    result = dict(forecast)
+    now = checked_at or datetime.now(ZoneInfo("Asia/Seoul"))
+    if result.get("예측상태") != "산출" or now.weekday() >= 5 or not (8 <= now.hour < 9):
+        return result
+    try:
+        nxt_price = float(current_nxt_quotes().get(str(symbol).zfill(6), np.nan))
+        close = float(krx_close)
+    except (TypeError, ValueError):
+        return result
+    if pd.isna(nxt_price) or not np.isfinite(nxt_price) or close <= 0:
+        result["NXT시가보정상태"] = "NXT 가격 없음"
+        return result
+    nxt_gap = (nxt_price / close - 1) * 100
+    if abs(nxt_gap) > 30:
+        result["NXT시가보정상태"] = "NXT 가격 검증 제외"
+        return result
+
+    base_open = float(result.get("예상시가평균%", 0.0))
+    # NXT is an actual same-morning trade, but remains a separate venue and is
+    # displayed with a delay; retain part of the historical/overseas forecast.
+    blend = .80
+    result["예상시가평균%"] = round((1 - blend) * base_open + blend * nxt_gap, 2)
+    result["NXT 현재가"] = round(nxt_price)
+    result["NXT_KRX괴리율%"] = round(nxt_gap, 2)
+    result["NXT시가보정비중%"] = round(blend * 100)
+    result["NXT시가보정상태"] = "오전 NXT 반영"
+    result["NXT보정시각"] = now.strftime("%Y-%m-%d %H:%M")
+    return result
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def kospi_next_session_prediction(lookback_days, min_samples, macro_current):
     start = (date.today() - timedelta(days=max(int(lookback_days) * 3, 1095))).isoformat()
@@ -835,6 +867,7 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
             )
             bt = merge_close_and_live_forecasts(close_bt, live_bt, now.strftime("%Y-%m-%d %H:%M"))
             bt = apply_stock_specific_open_signal(bt, symbol, df)
+            bt = apply_nxt_premarket_open_signal(bt, symbol, float(df["Close"].iloc[-1]), now)
         else:
             bt = {"표본수": 0, "예측상태": "사용 안 함", "신뢰도": "-"}
         combined = round(.60 * f["score"] + .25 * market_score + .15 * sector_score, 1)
@@ -969,7 +1002,8 @@ def current_kospi200_night():
 def enrich_after_hours(row):
     values = after_hours_snapshot(row["종목코드"], row["종가"], overseas_product_map(),
                                   current_fx_quote(), current_nxt_quotes())
-    return {**row, **values}
+    updated = apply_nxt_premarket_open_signal(row, row["종목코드"], row["종가"])
+    return {**updated, **values}
 
 
 def _date_range(days=25):
@@ -1193,6 +1227,7 @@ def detail_prediction_snapshot(symbol, market, sector_category, price_date, hori
         )
         result = merge_close_and_live_forecasts(close_result, live_result)
         result = apply_stock_specific_open_signal(result, symbol, history)
+        result = apply_nxt_premarket_open_signal(result, symbol, float(history["Close"].iloc[-1]))
         result["예측계산기준"] = f"상세보기 확장 재계산 · 최근 약 {extended_days // 365}년"
         return result
     except Exception as exc:
@@ -1289,6 +1324,12 @@ def show_detail(row):
             f"SK하이닉스 ADR(SKHY) {row.get('SKHY등락률%', 0):+.2f}% · "
             f"겹침 표본 {int(row.get('ADR겹침표본수', 0))}회 · "
             f"예상 시가 보정비중 {int(row.get('ADR시가보정비중%', 0))}%"
+        )
+    if row.get("NXT시가보정상태") == "오전 NXT 반영":
+        st.caption(
+            f"오전 NXT {row.get('NXT 현재가', 0):,.0f}원 · KRX 전일 종가 대비 "
+            f"{row.get('NXT_KRX괴리율%', 0):+.2f}% · 예상 시가 보정비중 "
+            f"{int(row.get('NXT시가보정비중%', 0))}% (20분 지연)"
         )
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(f"{detail_context['확률접두어']} 상승 확률", probability("익일승률%"))
@@ -1576,6 +1617,12 @@ def show_simple_prediction(row):
             f"SK하이닉스 ADR(SKHY) {row.get('SKHY등락률%', 0):+.2f}% · "
             f"겹침 표본 {int(row.get('ADR겹침표본수', 0))}회 · "
             f"예상 시가 보정비중 {int(row.get('ADR시가보정비중%', 0))}%"
+        )
+    if row.get("NXT시가보정상태") == "오전 NXT 반영":
+        st.caption(
+            f"오전 NXT {row.get('NXT 현재가', 0):,.0f}원 · KRX 전일 종가 대비 "
+            f"{row.get('NXT_KRX괴리율%', 0):+.2f}% · 예상 시가 보정비중 "
+            f"{int(row.get('NXT시가보정비중%', 0))}% (20분 지연)"
         )
     night_quote = current_kospi200_night()
     if night_quote:
