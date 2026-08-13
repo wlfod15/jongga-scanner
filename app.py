@@ -131,7 +131,7 @@ def render_scan_settings(prefix):
     setting_widget(prefix, "max_gap", st.slider, "MA20 최대 이격률(%)", min_value=1, max_value=30)
     setting_widget(prefix, "min_score", st.slider, "최소 종목점수", min_value=50, max_value=100, step=5)
     setting_widget(prefix, "lookback", st.select_slider, "조회 기간(일)", options=[180, 250, 365, 540])
-    setting_widget(prefix, "do_bt", st.checkbox, "과거 동일신호 백테스트")
+    setting_widget(prefix, "do_bt", st.checkbox, "후보 스캔 시 과거 동일신호 백테스트")
     setting_widget(prefix, "prediction_horizon", st.select_slider, "+3% 도달 관찰기간(거래일)", options=[1, 3, 5, 10])
     setting_widget(prefix, "min_prediction_samples", st.slider, "예측 최소 유사표본 수", min_value=10, max_value=50, step=5)
     setting_widget(prefix, "workers", st.slider, "동시 조회 수", min_value=2, max_value=10)
@@ -1385,7 +1385,7 @@ if move_clicked and len(matches):
             result = analyze(
                 r.Code, r.Name, mkt, sec,
                 (date.today() - timedelta(days=lookback)).isoformat(),
-                p, do_bt, market_score, market_data,
+                p, True, market_score, market_data,
                 forecast_mode=forecast_mode,
             )
         if result:
