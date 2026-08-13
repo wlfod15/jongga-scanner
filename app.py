@@ -1331,7 +1331,7 @@ if "scanner_v5_validation" in st.session_state and search_mode == "과거 날짜
         """, unsafe_allow_html=True)
         st.caption(f"기준일 {validation['기준일']} → 실제 거래일 {validation['실제일']} · 예상가는 당시 데이터만 사용한 유사표본 가중 중심값입니다.")
 
-st.markdown("### 종목을 모르겠다면")
+st.markdown("### 매수 후보를 찾고 싶다면")
 st.caption("전체 시장에서 조건에 맞는 후보를 찾아보세요.")
 scan_clicked = st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_container_width=True)
 accumulation_scan_clicked = st.button("매집 흔적 있는 종목만 보기", type="primary", use_container_width=True)
