@@ -155,7 +155,8 @@ def render_scan_settings(prefix):
 def show_usage_consent():
     st.markdown(
         """
-        본 프로그램은 테스트 목적으로 제작된 임시 서비스입니다. 아래 내용을 각각 확인해 주세요.
+        본 프로그램은 테스트 목적으로 제작된 임시 서비스입니다. **테스트 기간은 2026년 8월 17일까지이며,
+        이후 서비스 개선을 위해 종료됩니다.** 아래 내용을 각각 확인해 주세요.
         """
     )
     consent_1 = st.checkbox(
@@ -167,7 +168,7 @@ def show_usage_consent():
         key="scanner_v5_consent_responsibility",
     )
     consent_3 = st.checkbox(
-        "3. 테스트용 임시 프로그램으로서 데이터 지연·누락·오류가 발생할 수 있고, 서비스가 예고 없이 변경되거나 중단될 수 있음을 확인했습니다.",
+        "3. 테스트 기간은 2026년 8월 17일까지이며, 이후 서비스 개선을 위해 종료됩니다. 또한 데이터 지연·누락·오류가 발생하거나 서비스가 예고 없이 변경·중단될 수 있음을 확인했습니다.",
         key="scanner_v5_consent_service",
     )
     all_agreed = consent_1 and consent_2 and consent_3
