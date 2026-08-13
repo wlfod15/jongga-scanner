@@ -848,17 +848,41 @@ def ranking_score(stock_score, market_score, sector_score, bt, rr):
     return round(.45 * stock_score + .15 * market_score + .10 * sector_score + .15 * win + .10 * rr_score + .05 * sample_score, 1)
 
 
+def load_stock_daily_prices(symbol, market, start):
+    """Load KRX daily OHLCV with an independent Yahoo fallback."""
+    required = {"Open", "High", "Low", "Close", "Volume"}
+    frames = []
+    for fetch_start in (start, (date.today() - timedelta(days=900)).isoformat()):
+        try:
+            candidate = fdr.DataReader(str(symbol).zfill(6), fetch_start)
+            if candidate is not None and required.issubset(candidate.columns):
+                frames.append(candidate)
+                if len(candidate) >= 130:
+                    return candidate
+        except Exception:
+            continue
+    if frames:
+        best = max(frames, key=len)
+        if len(best) >= 80:
+            return best
+    if YF_OK:
+        suffix = ".KS" if str(market).upper().startswith("KOSPI") else ".KQ"
+        ticker = f"{str(symbol).zfill(6)}{suffix}"
+        try:
+            candidate = yf.download(ticker, period="5y", interval="1d", auto_adjust=False,
+                                    progress=False, threads=False)
+            if isinstance(candidate.columns, pd.MultiIndex):
+                candidate.columns = candidate.columns.get_level_values(0)
+            if required.issubset(candidate.columns) and len(candidate) >= 80:
+                return candidate
+        except Exception:
+            pass
+    return max(frames, key=len) if frames else pd.DataFrame()
+
+
 def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, market_data, forecast_mode="auto"):
     try:
-        raw = fdr.DataReader(symbol, start)
-        required_columns = {"Open", "High", "Low", "Close", "Volume"}
-        if raw is None or len(raw) < 130 or not required_columns.issubset(raw.columns):
-            # A short user lookback is enough for the legacy signal but not MA120,
-            # and the combined KRX endpoint can occasionally return a partial set.
-            retry_start = (date.today() - timedelta(days=900)).isoformat()
-            retry = fdr.DataReader(symbol, retry_start)
-            if retry is not None and len(retry) > len(raw if raw is not None else []):
-                raw = retry
+        raw = load_stock_daily_prices(symbol, market, start)
         latest_prices = pd.to_numeric(raw["Close"], errors="coerce").dropna()
         current_price = float(latest_prices.iloc[-1]) if len(latest_prices) else np.nan
         current_change = (
