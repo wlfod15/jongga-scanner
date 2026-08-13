@@ -614,13 +614,21 @@ def show_detail(row):
     c1, c2, c3 = st.columns(3)
     c1.metric("KRX 종가", won_value("KRX 종가"))
     c2.metric("NXT 현재가 (20분 지연)", won_value("NXT 현재가"))
-    c3.metric("해외 24h 환산가", won_value("해외24h 환산가"))
+    c3.metric("해외 DR·24시간 선물 환산가", won_value("해외24h 환산가"))
     c1, c2, c3 = st.columns(3)
     c1.metric("해외 괴리율", pct_value("해외 괴리율%"))
     c2.metric("NXT 프리미엄", pct_value("NXT 프리미엄%"))
     c3.metric("해외가격 판정", row.get("해외가격 신호", "데이터 없음"))
-    st.caption(f"해외상품 유형: {row.get('해외상품 유형', '매핑 없음')} · USD/KRW: {row.get('USD/KRW', np.nan):,.2f}" if pd.notna(row.get("USD/KRW", np.nan)) else
-               f"해외상품 유형: {row.get('해외상품 유형', '매핑 없음')} · USD/KRW 데이터 없음")
+    product_name = row.get("해외상품명", "매핑 없음")
+    price_source = row.get("해외가격 출처", "데이터 없음")
+    ratio = row.get("원주환산비율", np.nan)
+    ratio_text = f"해외상품 1개 = KRX 원주 {float(ratio):g}주" if pd.notna(ratio) else "환산비율 없음"
+    fx_text = f"USD/KRW {row.get('USD/KRW'):,.2f}" if pd.notna(row.get("USD/KRW", np.nan)) else "USD/KRW 데이터 없음"
+    st.caption(f"상품: {product_name} · 출처: {price_source} · {ratio_text} · {fx_text}")
+    if pd.isna(row.get("해외24h 환산가", np.nan)):
+        st.caption(f"표시하지 못한 이유: {row.get('해외가격 신호', '시세 수신 실패')}")
+    elif str(row.get("해외상품 유형", "")).lower() in {"perpetual", "perp", "futures"}:
+        st.caption("※ 무기한선물 환산가는 현물·ADR 가격이 아니며, 참고용 선물시장 기대가격입니다.")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("진입가", f"{row['진입가']:,.0f}원")
