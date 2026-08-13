@@ -347,6 +347,12 @@ def ranking_score(stock_score, market_score, sector_score, bt, rr):
 def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, market_data, forecast_mode="auto"):
     try:
         raw = fdr.DataReader(symbol, start)
+        latest_prices = pd.to_numeric(raw["Close"], errors="coerce").dropna()
+        current_price = float(latest_prices.iloc[-1]) if len(latest_prices) else np.nan
+        current_change = (
+            (float(latest_prices.iloc[-1]) / float(latest_prices.iloc[-2]) - 1) * 100
+            if len(latest_prices) >= 2 and float(latest_prices.iloc[-2]) != 0 else np.nan
+        )
         now = datetime.now(ZoneInfo("Asia/Seoul"))
         market_hours = now.weekday() < 5 and (9, 0) <= (now.hour, now.minute) <= (15, 40)
         latest_is_today = len(raw) and pd.Timestamp(raw.index[-1]).date() == now.date()
@@ -367,7 +373,10 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
         r = df.iloc[-1]
         out = {"종목코드": symbol, "종목명": name, "시장": market, "업종분류": cat, "날짜": df.index[-1].strftime("%Y-%m-%d"),
                "예측모드": forecast_mode,
-               "종가": round(float(r["Close"])), "등락률%": round(float(r["RET1"]), 2), "종목점수": f["score"],
+               "종가": round(float(r["Close"])), "등락률%": round(float(r["RET1"]), 2),
+               "현재가": round(current_price) if pd.notna(current_price) else round(float(r["Close"])),
+               "현재등락률%": round(current_change, 2) if pd.notna(current_change) else round(float(r["RET1"]), 2),
+               "종목점수": f["score"],
                "시장환경": market_score, "업종환경": sector_score, "종합점수": combined, "판정": decision,
                "탈락사유": "없음" if not f["failures"] else " / ".join(f["failures"]), "유형": f["type"], "RSI14": round(float(r["RSI"]), 1),
                "거래량배수": round(f["vr"], 2), "종가위치%": round(f["close_pos"], 1), "윗꼬리%": round(f["wick"], 1),
@@ -897,15 +906,48 @@ def show_simple_prediction(row):
         st.rerun()
 
 
-def scanner_table(frame):
-    color_cols = [c for c in ("해외 괴리율%", "NXT 프리미엄%") if c in frame.columns]
-    if not color_cols:
-        return frame
-    def color_value(value):
-        if pd.isna(value): return "color: #8b93a5"
-        return "color: #2e9d50; font-weight: 700" if value > 0 else "color: #d14b4b; font-weight: 700" if value < 0 else ""
-    return frame.style.map(color_value, subset=color_cols).format({c: "{:+.2f}%" for c in color_cols}, na_rep="데이터 없음")
+def current_price_label(row):
+    price = row.get("현재가", row.get("종가", np.nan))
+    change = row.get("현재등락률%", row.get("등락률%", np.nan))
+    if pd.isna(price):
+        return "데이터 없음"
+    if pd.isna(change):
+        return f"{price:,.0f}원"
+    arrow = "▲" if change > 0 else "▼" if change < 0 else "—"
+    sign = "+" if change > 0 else ""
+    return f"{price:,.0f}원 ({arrow} {sign}{change:.2f}%)"
 
+
+def scanner_table(frame):
+    data = frame.copy()
+    price_column = "현재가 (등락률)"
+    if price_column in data.columns:
+        hidden = {"현재가", "현재등락률%", "종가", "등락률%"}
+        columns = [c for c in data.columns if c not in hidden and c != price_column]
+        insert_at = columns.index("종목명") + 1 if "종목명" in columns else 0
+        columns.insert(insert_at, price_column)
+        data = data[columns]
+
+    color_cols = [c for c in ("해외 괴리율%", "NXT 프리미엄%") if c in data.columns]
+    if not color_cols and price_column not in data.columns:
+        return data
+
+    style = data.style
+    if price_column in data.columns:
+        def price_direction(value):
+            text = str(value)
+            if "▲" in text: return "color: #d14b4b; font-weight: 700"
+            if "▼" in text: return "color: #2f6fed; font-weight: 700"
+            return "color: #7a8292; font-weight: 700"
+        style = style.map(price_direction, subset=[price_column])
+
+    if color_cols:
+        def color_value(value):
+            if pd.isna(value): return "color: #8b93a5"
+            return "color: #2e9d50; font-weight: 700" if value > 0 else "color: #d14b4b; font-weight: 700" if value < 0 else ""
+        style = style.map(color_value, subset=color_cols).format(
+            {col: "{:+.2f}%" for col in color_cols}, na_rep="데이터 없음")
+    return style
 
 def market_table_style(frame):
     def direction_color(value):
@@ -1151,10 +1193,11 @@ if not st.session_state.get("scanner_v5_hide_market", False):
     st.caption("최종순위점수는 종목 45%·시장 15%·업종 10%·과거 5일 승률 15%·1차 손익비 10%·표본 신뢰도 5%의 검증 전 설계 가중치입니다. 실전 성과를 보장하지 않습니다.")
 
 if "scanner_v5_all" in st.session_state:
-    R = st.session_state["scanner_v5_all"]
+    R = st.session_state["scanner_v5_all"].copy()
     if st.session_state.get("scanner_v5_result_mode") == "accumulation":
+        R["현재가 (등락률)"] = R.apply(current_price_label, axis=1)
         st.subheader("매집 흔적 검색 결과")
-        st.caption("매집 흔적 점수 50점 이상만 표시합니다. 특정 세력이나 계좌의 실제 진입을 확인한 결과는 아닙니다.")
+        st.caption("현재가는 조회 시점에 수집 가능한 최신 가격입니다. 매집 흔적 점수 50점 이상만 표시하며, 특정 세력이나 계좌의 실제 진입을 확인한 결과는 아닙니다.")
     R = R[pattern_filter_mask(R, pattern_filter, pattern_approach_pct)]
     buys = R[R["판정"] == "매수후보"].head(5)
     near = R[R["판정"] != "매수후보"].sort_values(["최종순위점수", "종합점수"], ascending=False).head(5)
