@@ -328,7 +328,12 @@ def ranking_score(stock_score, market_score, sector_score, bt, rr):
 
 def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, market_data):
     try:
-        df = prep(fdr.DataReader(symbol, start))
+        raw = fdr.DataReader(symbol, start)
+        now = datetime.now(ZoneInfo("Asia/Seoul"))
+        market_hours = now.weekday() < 5 and (9, 0) <= (now.hour, now.minute) <= (15, 40)
+        if market_hours and len(raw) and pd.Timestamp(raw.index[-1]).date() == now.date():
+            raw = raw.iloc[:-1]  # 장중 미완성 일봉 제외: 직전 확정 종가로 오늘을 예측
+        df = prep(raw)
         if len(df) < 80: return None
         mr = benchmark(market, start)
         f = row_features(df, mr, -1, p)
@@ -567,9 +572,10 @@ def show_detail(row):
     c3.metric("CVD Proxy", row.get("CVD Proxy", "-"))
     c4.metric("RSI(14)", f"{row.get('RSI14', np.nan):.1f}")
 
-    st.markdown("#### 익일 통계 예측")
+    detail_context = prediction_context(row["날짜"])
+    st.markdown(f"#### {detail_context['구분']} 통계")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("익일 상승 확률", probability("익일승률%"))
+    c1.metric(f"{detail_context['확률접두어']} 상승 확률", probability("익일승률%"))
     c2.metric("갭상승 확률", probability("갭상승확률%"))
     c3.metric(f"{horizon}일 내 +3%", probability(reach_key))
     c4.metric("초기 손절 도달", probability("초기손절도달확률%"))
@@ -645,70 +651,139 @@ def show_detail(row):
             st.warning(f"60분봉 추정 패턴을 불러오지 못했습니다: {exc}")
 
 
+def prediction_context(price_date):
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    basis = pd.Timestamp(price_date).date()
+    market_hours = now.weekday() < 5 and (9, 0) <= (now.hour, now.minute) <= (15, 40)
+    if market_hours:
+        return {
+            "구분": "오늘 종가 예측", "제목": "오늘 예상 가격", "확률접두어": "오늘",
+            "대상": "오늘 장 마감", "기준": f"{basis:%Y-%m-%d} 확정 종가",
+            "안내": "장중 미완성 일봉은 제외하고 직전 확정 종가로 오늘 가격을 추정합니다.",
+        }
+    return {
+        "구분": "익일 예측", "제목": "익일 예상 가격", "확률접두어": "익일",
+        "대상": "다음 KRX 거래일", "기준": f"{basis:%Y-%m-%d} 확정 종가",
+        "안내": "가장 최근 확정 종가로 다음 KRX 거래일 가격을 추정합니다.",
+    }
+
+
 def show_simple_prediction(row):
-    """Minimal result used by direct stock lookup."""
-    st.markdown(f"#### {row['종목명']} ({row['종목코드']}) 예상 가격")
+    """Mobile-first result used immediately after direct stock lookup."""
+    context = prediction_context(row["날짜"])
+    st.markdown(f"#### {row['종목명']} ({row['종목코드']})")
+    st.info(
+        f"**{context['구분']}** · 가격 기준: {context['기준']} · "
+        f"예측 대상: {context['대상']}\n\n{context['안내']}"
+    )
     prediction_ok = row.get("예측상태") == "산출"
     entry = float(row["진입가"])
+    horizon = next((int(k.split("일내")[0]) for k in row.keys() if "일내+3%도달%" in k), 5)
+    reach_key = f"{horizon}일내+3%도달%"
 
-    def predicted_price(key):
-        value = row.get(key, np.nan)
-        if not prediction_ok or pd.isna(value):
-            return "표본 부족"
-        return f"{entry * (1 + float(value) / 100):,.0f}원"
-
-    def direction_delta(key):
+    def pct_price(key):
         value = row.get(key, np.nan)
         if not prediction_ok or pd.isna(value):
             return None
-        value = float(value)
-        direction = "상승" if value > 0 else "하락" if value < 0 else "보합"
-        return f"{value:+.2f}% · {direction}"
+        return entry * (1 + float(value) / 100)
+
+    def range_text(low_key, high_key):
+        low, high = pct_price(low_key), pct_price(high_key)
+        if low is None or high is None:
+            return "표본 부족"
+        return f"{min(low, high):,.0f} ~ {max(low, high):,.0f}원"
+
+    def single_text(key):
+        value = pct_price(key)
+        return "표본 부족" if value is None else f"{value:,.0f}원"
 
     def probability(key):
         value = row.get(key, np.nan)
         return "표본 부족" if not prediction_ok or pd.isna(value) else f"{float(value):.0f}%"
 
-    open_key = "예상시가평균%"
-    if pd.isna(row.get(open_key, np.nan)) and prediction_ok:
-        low = row.get("예상시가하단%", np.nan)
-        high = row.get("예상시가상단%", np.nan)
-        if pd.notna(low) and pd.notna(high):
-            row = {**row, open_key: (float(low) + float(high)) / 2}
+    forecast_cards = [
+        ("예상 시가 범위", range_text("예상시가하단%", "예상시가상단%")),
+        ("예상 종가 범위", range_text("예상종가하단%", "예상종가상단%")),
+        ("예상 고가", single_text("예상고가%")),
+        ("예상 저가", single_text("예상저가%")),
+    ]
+    st.markdown(f"### {context['제목']}")
+    st.markdown("""
+    <style>
+    .forecast-stack {display:grid; grid-template-columns:1fr; gap:.75rem; margin:.25rem 0 1rem;}
+    .forecast-card {min-width:0; padding:1rem 1.1rem; border:1px solid #e1e6ef; border-radius:14px;
+      background:#fff; box-shadow:0 2px 10px rgba(25,35,55,.035); overflow:hidden;}
+    .forecast-title {font-size:clamp(.9rem,3.5vw,1.05rem); color:#667085; margin-bottom:.35rem;}
+    .forecast-value {font-size:clamp(1.35rem,6vw,2rem); font-weight:750; line-height:1.25;
+      letter-spacing:-.03em; overflow-wrap:anywhere; word-break:keep-all;}
+    @media (min-width:800px) {.forecast-stack {grid-template-columns:repeat(2,minmax(0,1fr));}}
+    </style>
+    """, unsafe_allow_html=True)
+    cards = "".join(
+        f'<div class="forecast-card"><div class="forecast-title">{title}</div>'
+        f'<div class="forecast-value">{value}</div></div>'
+        for title, value in forecast_cards
+    )
+    st.markdown(f'<div class="forecast-stack">{cards}</div>', unsafe_allow_html=True)
+    st.caption(
+        f"표시된 기준 가격으로부터 {context['대상']} 가격을 추정합니다. 예상 고가·저가는 "
+        "확정가격이 아니라 과거 유사신호 분포와 ATR14를 이용한 대표 추정값입니다."
+    )
 
-    night = current_kospi200_night() if str(row.get("시장", "")).upper().startswith("KOSPI") else None
-    if night and prediction_ok and pd.notna(row.get(open_key, np.nan)):
-        row = {**row, open_key: float(row[open_key]) + float(night["변동률%"])}
-
+    st.markdown(f"### {context['확률접두어']} 가능성")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(f"{context['확률접두어']} 상승확률", probability("익일승률%"))
+    c2.metric("갭상승확률", probability("갭상승확률%"))
+    c3.metric(f"{horizon}일 내 +3%", probability(reach_key))
+    c4.metric("손절선 도달확률", probability("초기손절도달확률%"))
     c1, c2 = st.columns(2)
-    c1.metric("예상 시가", predicted_price(open_key), direction_delta(open_key))
-    c2.metric("예상 종가", predicted_price("익일평균%"), direction_delta("익일평균%"))
-    st.caption(f"오늘 종가 {entry:,.0f}원 대비")
-    if night:
-        direction = "▲" if night["변동률%"] > 0 else "▼" if night["변동률%"] < 0 else "-"
-        st.caption(
-            f"코스피200 야간선물 {direction} {night['변동률%']:+.2f}%를 예상 시가에 반영 · "
-            f"거래량 {night['거래량']:,} · {night['조회시각']} · {night['출처']}"
-        )
-    c1, c2 = st.columns(2)
-    c1.metric("익일 상승 확률", probability("익일승률%"))
-    c2.metric("갭상승 확률", probability("갭상승확률%"))
-    st.caption("과거 유사조건과 ATR14를 결합한 통계적 예상 중심값이며 실제 가격을 보장하지 않습니다.")
+    c1.metric("예측 신뢰도", row.get("신뢰도", "표본 부족"))
+    c2.metric("유사표본수", f"{int(row.get('표본수', 0) or 0)}회")
 
-    st.markdown("#### 60분봉 추정 패턴")
+    st.markdown("### 핵심 지표")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("종합점수", f"{row['종합점수']:.1f}/100", row["판정"])
+    c2.metric("OBV", row.get("OBV", "-"))
+    c3.metric("CVD Proxy", row.get("CVD Proxy", "-"))
+    c4.metric("RSI(14)", f"{row.get('RSI14', np.nan):.1f}")
+
+    with st.spinner("수급·공매도 데이터 확인 중..."):
+        summary, _, _ = flow_and_short(row["종목코드"])
+    foreign = summary.get("외국인5일순매수(억원)", np.nan)
+    institution = summary.get("기관5일순매수(억원)", np.nan)
+    short_ratio = summary.get("공매도잔고비중%", summary.get("최근공매도비중%", np.nan))
+    st.markdown("### 수급")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("외국인 5일", "조회 불가" if pd.isna(foreign) else f"{foreign:+,.1f}억원")
+    c2.metric("기관 5일", "조회 불가" if pd.isna(institution) else f"{institution:+,.1f}억원")
+    c3.metric("공매도 비중", "KRX 연결 필요" if pd.isna(short_ratio) else f"{short_ratio:.2f}%")
+
+    st.markdown("### 진입·손절·익절")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("진입가", f"{row['진입가']:,.0f}원")
+    c2.metric("손절가", f"{row['초기손절']:,.0f}원", f"-{row['손절률%']:.2f}%")
+    c3.metric("1차 익절가", f"{row['1차익절(+10%)']:,.0f}원", "+10%")
+    c4.metric("2차 익절가", f"{row['2차익절(+20%)']:,.0f}원", "+20%")
+
+    st.markdown("### 차트")
+    try:
+        st.plotly_chart(chart(row["종목코드"], row), use_container_width=True)
+    except Exception as exc:
+        st.warning(f"차트를 불러오지 못했습니다: {exc}")
+
+    st.markdown("### 60분봉 추정 패턴")
     pattern_ok = row.get("추정 패턴 상태") == "산출"
     rebound = row.get("추정 반등가", np.nan)
     next_target = row.get("다음 목표가", np.nan)
     rebound_text = f"{float(rebound):,.0f}원" if pattern_ok and pd.notna(rebound) else "표본 부족"
     target_text = f"{float(next_target):,.0f}원" if pattern_ok and pd.notna(next_target) else "표본 부족"
     stage_text = row.get("현재 패턴 단계", "표본 부족") if pattern_ok else row.get("추정 패턴 상태", "표본 부족")
-    rebound_delta = f"{float(row['반등가 거리(%)']):+.1f}%" if pattern_ok and pd.notna(row.get("반등가 거리(%)", np.nan)) else None
-    target_delta = f"{float(row['다음 목표까지(%)']):+.1f}%" if pattern_ok and pd.notna(row.get("다음 목표까지(%)", np.nan)) else None
     c1, c2, c3 = st.columns(3)
-    c1.metric("추정 반등가", rebound_text, rebound_delta)
+    c1.metric("추정 반등가", rebound_text)
     c2.metric("현재 패턴 단계", stage_text)
-    c3.metric("다음 목표가", target_text, target_delta)
+    c3.metric("다음 목표가", target_text)
     st.caption("검증 중인 독립 가설이며 기존 종가매매 추천 점수에는 반영되지 않습니다.")
+
     if st.button("자세히 보기", use_container_width=True):
         with st.spinner("상세 데이터 불러오는 중..."):
             st.session_state["scanner_v5_selected"] = enrich_after_hours(dict(row))
