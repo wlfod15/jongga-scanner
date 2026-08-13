@@ -1006,6 +1006,16 @@ def show_simple_prediction(row):
         ("예상 저가", single_text("예상저가%")),
     ]
     st.markdown(f"### {context['제목']}")
+    st.markdown(
+        """
+        <div style="margin:.15rem 0 .8rem; color:#a94a4a;
+                    font-size:clamp(.72rem,2.4vw,.82rem); line-height:1.45;">
+          ※ 예상가격은 과거 데이터에 기반한 통계적 추정치입니다. 실제 주가는 시장 상황에 따라
+          예상치와 다를 수 있습니다. 참고자료로만 사용해야 하며 투자 결과를 보장하거나 책임지지 않습니다.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.markdown("""
     <style>
     .forecast-stack {display:grid; grid-template-columns:1fr; gap:.75rem; margin:.25rem 0 1rem;}
@@ -1026,16 +1036,6 @@ def show_simple_prediction(row):
     st.caption(
         f"표시된 기준 가격으로부터 {context['대상']} 가격을 추정합니다. 예상 고가·저가는 "
         "확정가격이 아니라 과거 유사신호 분포와 ATR14를 이용한 대표 추정값입니다."
-    )
-    st.markdown(
-        """
-        <div style="margin:.15rem 0 .8rem; color:#a94a4a;
-                    font-size:clamp(.72rem,2.4vw,.82rem); line-height:1.45;">
-          ※ 예상가격은 과거 데이터에 기반한 통계적 추정치입니다. 실제 주가는 시장 상황에 따라
-          예상치와 다를 수 있습니다. 참고자료로만 사용해야 하며 투자 결과를 보장하거나 책임지지 않습니다.
-        </div>
-        """,
-        unsafe_allow_html=True,
     )
 
     st.markdown(
