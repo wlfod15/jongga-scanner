@@ -1028,6 +1028,27 @@ def show_simple_prediction(row):
         "확정가격이 아니라 과거 유사신호 분포와 ATR14를 이용한 대표 추정값입니다."
     )
 
+    st.markdown(
+        f"""
+        <style>
+        .current-price-heading {{display:flex; align-items:baseline; justify-content:space-between;
+          flex-wrap:wrap; gap:.25rem .75rem; margin:1.15rem 0 .55rem;}}
+        .current-price-title {{font-size:clamp(1.25rem,4vw,1.75rem); font-weight:750;
+          color:#31333f; line-height:1.25;}}
+        .current-price-time {{font-size:clamp(.76rem,2.6vw,.9rem); color:#7a8292; line-height:1.4;}}
+        @media (max-width:640px) {{
+          .current-price-heading {{align-items:flex-start; flex-direction:column;}}
+        }}
+        </style>
+        <div class="current-price-heading">
+          <div class="current-price-title">현재 주가 정보</div>
+          <div class="current-price-time">기준일자 {row.get('현재가기준일', row.get('날짜', '-'))}
+          · 조회시간 {row.get('현재가조회시각', '-')}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     if row.get("예측모드") == "today":
         price_col, open_col, gap_col = st.columns(3)
         price_col.metric(current_label, price_text, change_text)
@@ -1046,10 +1067,7 @@ def show_simple_prediction(row):
     else:
         st.metric(current_label, price_text, change_text)
 
-    st.caption(
-        f"가격 기준일 {row.get('현재가기준일', row.get('날짜', '-'))} · "
-        f"조회 시각 {row.get('현재가조회시각', '-')} · 장중 가격은 지연될 수 있으며 실시간 체결가를 보장하지 않습니다."
-    )
+    st.caption("장중 가격은 지연될 수 있으며 실시간 체결가를 보장하지 않습니다.")
 
     st.markdown(f"### {context['확률접두어']} 가능성")
     c1, c2, c3, c4 = st.columns(4)
