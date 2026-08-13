@@ -1110,8 +1110,24 @@ def show_simple_prediction(row):
     show_accumulation(row, accumulation_summary)
 
     st.markdown("### 진입·손절·익절")
+    entry_basis_text = (
+        "오늘 종가 예측의 기준 진입가는 직전 거래일의 확정 종가입니다."
+        if row.get("예측모드") == "today" else
+        "익일 예측의 기준 진입가는 조회 시점에 사용된 마지막 일봉의 종가입니다. 장중에는 지연된 최신 가격일 수 있습니다."
+    )
+    st.markdown(
+        f"""
+        <div style="margin:.1rem 0 .8rem; color:#697386;
+                    font-size:clamp(.72rem,2.4vw,.82rem); line-height:1.5;">
+          {entry_basis_text}<br>
+          <span style="color:#a94a4a;">※ 진입가는 해당 가격에 매수하라는 의미가 아니라 손절가와
+          1차·2차 익절가를 계산하기 위한 기준가격입니다. 참고자료로만 사용하세요.</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("진입가", f"{row['진입가']:,.0f}원")
+    c1.metric("기준 진입가", f"{row['진입가']:,.0f}원")
     c2.metric("손절가", f"{row['초기손절']:,.0f}원", f"-{row['손절률%']:.2f}%")
     c3.metric("1차 익절가", f"{row['1차익절(+10%)']:,.0f}원", "+10%")
     c4.metric("2차 익절가", f"{row['2차익절(+20%)']:,.0f}원", "+20%")
