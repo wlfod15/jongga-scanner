@@ -682,7 +682,14 @@ def apply_stock_specific_open_signal(forecast, symbol, krx_history):
     slope = float(np.clip(slope, .15, 1.25))
     latest_move = float(adr_ret.iloc[-1])
     adr_implied_gap = float(np.clip(intercept + slope * latest_move, -20, 20))
-    base_open = float(result.get("예상시가평균%", 0.0))
+    price_keys = (
+        "예상시가평균%", "예상고가%", "예상저가%", "익일평균%",
+        "예상시가하단%", "예상시가상단%", "예상종가하단%", "예상종가상단%",
+    )
+    for key in price_keys:
+        if pd.notna(result.get(key, np.nan)):
+            result.setdefault(f"NXT보정전_{key}", float(result[key]))
+    base_open = float(result.get("NXT보정전_예상시가평균%", result.get("예상시가평균%", 0.0)))
     blend = float(np.clip(.25 + len(paired) / 100, .35, .60))
     result["예상시가평균%"] = round((1 - blend) * base_open + blend * adr_implied_gap, 2)
     result["SKHY등락률%"] = round(latest_move, 2)
@@ -716,7 +723,12 @@ def apply_nxt_premarket_open_signal(forecast, symbol, krx_close, checked_at=None
     # NXT is an actual same-morning trade, but remains a separate venue and is
     # displayed with a delay; retain part of the historical/overseas forecast.
     blend = .80
-    result["예상시가평균%"] = round((1 - blend) * base_open + blend * nxt_gap, 2)
+    adjusted_open = (1 - blend) * base_open + blend * nxt_gap
+    shift = adjusted_open - base_open
+    for key in price_keys:
+        original = result.get(f"NXT보정전_{key}", np.nan)
+        if pd.notna(original):
+            result[key] = round(float(np.clip(float(original) + shift, -30, 30)), 2)
     result["NXT 현재가"] = round(nxt_price)
     result["NXT_KRX괴리율%"] = round(nxt_gap, 2)
     result["NXT시가보정비중%"] = round(blend * 100)
@@ -1325,12 +1337,6 @@ def show_detail(row):
             f"겹침 표본 {int(row.get('ADR겹침표본수', 0))}회 · "
             f"예상 시가 보정비중 {int(row.get('ADR시가보정비중%', 0))}%"
         )
-    if row.get("NXT시가보정상태") == "오전 NXT 반영":
-        st.caption(
-            f"오전 NXT {row.get('NXT 현재가', 0):,.0f}원 · KRX 전일 종가 대비 "
-            f"{row.get('NXT_KRX괴리율%', 0):+.2f}% · 예상 시가 보정비중 "
-            f"{int(row.get('NXT시가보정비중%', 0))}% (20분 지연)"
-        )
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(f"{detail_context['확률접두어']} 상승 확률", probability("익일승률%"))
     c2.metric("갭상승 확률", probability("갭상승확률%"))
@@ -1617,12 +1623,6 @@ def show_simple_prediction(row):
             f"SK하이닉스 ADR(SKHY) {row.get('SKHY등락률%', 0):+.2f}% · "
             f"겹침 표본 {int(row.get('ADR겹침표본수', 0))}회 · "
             f"예상 시가 보정비중 {int(row.get('ADR시가보정비중%', 0))}%"
-        )
-    if row.get("NXT시가보정상태") == "오전 NXT 반영":
-        st.caption(
-            f"오전 NXT {row.get('NXT 현재가', 0):,.0f}원 · KRX 전일 종가 대비 "
-            f"{row.get('NXT_KRX괴리율%', 0):+.2f}% · 예상 시가 보정비중 "
-            f"{int(row.get('NXT시가보정비중%', 0))}% (20분 지연)"
         )
     night_quote = current_kospi200_night()
     if night_quote:
