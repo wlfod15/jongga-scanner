@@ -1082,7 +1082,10 @@ if "scanner_v5_validation" in st.session_state and search_mode == "과거 날짜
         """, unsafe_allow_html=True)
         st.caption(f"기준일 {validation['기준일']} → 실제 거래일 {validation['실제일']} · 예상가는 당시 데이터만 사용한 유사표본 가중 중심값입니다.")
 
-if st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_container_width=True):
+scan_clicked = st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_container_width=True)
+accumulation_scan_clicked = st.button("매집 흔적 있는 종목만 보기", type="primary", use_container_width=True)
+
+if scan_clicked or accumulation_scan_clicked:
     scan = L.copy()
     if market_filter != "전체" and "Market" in scan.columns: scan = scan[scan["Market"].astype(str).str.upper().str.startswith(market_filter)]
     cap = next((c for c in ("Marcap", "MarketCap") if c in scan.columns), None)
@@ -1100,14 +1103,48 @@ if st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_con
             if result: rows.append(result)
             progress.progress(i / max(len(futures), 1)); message.text(f"{i}/{len(futures)} 종목 분석 중")
     progress.empty(); message.empty()
+
+    if rows and accumulation_scan_clicked:
+        # 수급 조회 전 기술 신호가 40점 이상인 종목만 정밀 확인해 전체 검색 시간을 줄인다.
+        preliminary = [
+            row for row in rows
+            if accumulation_snapshot(row, {})["점수"] >= 40
+        ]
+        preliminary = sorted(preliminary, key=lambda row: row.get("종목점수", 0), reverse=True)[:80]
+        filtered, acc_progress = [], st.progress(0)
+        acc_message = st.empty()
+        for i, row in enumerate(preliminary, 1):
+            summary, _, _ = flow_and_short(row["종목코드"])
+            accumulation = accumulation_snapshot(row, summary)
+            if accumulation["점수"] >= 50:
+                row.update({
+                    "매집 흔적 점수": accumulation["점수"],
+                    "매집 단계": accumulation["단계"],
+                    "매집 근거": accumulation["근거"],
+                    "매집 위험": accumulation["위험"],
+                })
+                filtered.append(row)
+            acc_progress.progress(i / max(len(preliminary), 1))
+            acc_message.text(f"{i}/{len(preliminary)} 종목 매집 흔적 확인 중")
+        acc_progress.empty(); acc_message.empty()
+        rows = sorted(filtered, key=lambda row: (row["매집 흔적 점수"], row.get("종합점수", 0)), reverse=True)
+
     if rows:
         rows = [enrich_after_hours(row) for row in rows]
-        R = pd.DataFrame(rows).sort_values(["최종순위점수", "종합점수"], ascending=False)
+        sort_columns = ["매집 흔적 점수", "종합점수"] if accumulation_scan_clicked else ["최종순위점수", "종합점수"]
+        R = pd.DataFrame(rows).sort_values(sort_columns, ascending=False)
         st.session_state["scanner_v5_all"] = R
-    else: st.error("분석 결과가 없습니다.")
+        st.session_state["scanner_v5_result_mode"] = "accumulation" if accumulation_scan_clicked else "standard"
+    elif accumulation_scan_clicked:
+        st.warning("현재 기준에서 매집 흔적 점수 50점 이상인 종목이 없습니다.")
+    else:
+        st.error("분석 결과가 없습니다.")
 
 if "scanner_v5_all" in st.session_state:
     R = st.session_state["scanner_v5_all"]
+    if st.session_state.get("scanner_v5_result_mode") == "accumulation":
+        st.subheader("매집 흔적 검색 결과")
+        st.caption("매집 흔적 점수 50점 이상만 표시합니다. 특정 세력이나 계좌의 실제 진입을 확인한 결과는 아닙니다.")
     R = R[pattern_filter_mask(R, pattern_filter, pattern_approach_pct)]
     buys = R[R["판정"] == "매수후보"].head(5)
     near = R[R["판정"] != "매수후보"].sort_values(["최종순위점수", "종합점수"], ascending=False).head(5)
@@ -1121,7 +1158,7 @@ if "scanner_v5_all" in st.session_state:
     sector_choice = st.selectbox("업종 보기", ["전체", "반도체", "성장·기술", "에너지", "항공·운송", "일반"])
     view = R if sector_choice == "전체" else R[R["업종분류"] == sector_choice]
     pattern_columns = ["추정 반등가", "반등가 거리(%)", "현재 패턴 단계", "다음 목표가", "다음 목표까지(%)"]
-    leading = [c for c in ["종목코드", "종목명", "종가", "판정"] if c in view.columns]
+    leading = [c for c in ["종목코드", "종목명", "종가", "판정", "매집 흔적 점수", "매집 단계", "매집 근거", "매집 위험"] if c in view.columns]
     display_columns = leading + [c for c in pattern_columns if c in view.columns]
     remaining = [c for c in view.columns if c not in display_columns]
     st.dataframe(scanner_table(view[display_columns + remaining]), use_container_width=True, hide_index=True)
