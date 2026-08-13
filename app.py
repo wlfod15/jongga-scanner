@@ -39,8 +39,14 @@ html, body, [data-testid="stAppViewContainer"] { background: #f6f8fb; }
   border-radius: 1rem; padding: 1rem 1.1rem; box-shadow: 0 2px 10px rgba(25,35,55,.035);
 }
 [data-testid="stMetricLabel"] p { white-space: normal; line-height: 1.25; }
-[data-testid="stMetricValue"] { font-size: clamp(1.25rem, 4.5vw, 2.35rem); }
-[data-testid="stMetricValue"] > div { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
+[data-testid="stMetricValue"] {
+  min-width: 0; font-size: clamp(1.05rem, 2.6vw, 1.85rem);
+  line-height: 1.18; letter-spacing: -.025em;
+}
+[data-testid="stMetricValue"] > div {
+  min-width: 0; white-space: normal !important; overflow: visible !important;
+  text-overflow: clip !important; overflow-wrap: anywhere; word-break: keep-all; line-height: 1.18;
+}
 [data-testid="stMetricDelta"] { font-size: clamp(.78rem, 2.8vw, 1rem); }
 .validation-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
 .validation-card { min-width: 0; background: #fff; border: 1px solid #e7eaf0; border-radius: 1rem; padding: 1rem 1.1rem; }
@@ -53,7 +59,8 @@ html, body, [data-testid="stAppViewContainer"] { background: #f6f8fb; }
   h2, h3 { font-size: 1.25rem !important; line-height: 1.3 !important; }
   [data-testid="stHorizontalBlock"] { flex-wrap: wrap; gap: .65rem; }
   [data-testid="column"] { flex: 1 1 100% !important; min-width: 0 !important; }
-  [data-testid="stMetric"] { padding: .85rem 1rem; border-radius: .85rem; }
+  [data-testid="stMetric"] { padding: .85rem 1rem; border-radius: .85rem; min-height: 7rem; }
+  [data-testid="stMetricValue"] { font-size: clamp(1rem, 6vw, 1.55rem); }
   [data-testid="stDataFrame"] { font-size: .78rem; }
   .validation-grid { grid-template-columns: 1fr; }
 }
@@ -724,8 +731,8 @@ def show_simple_prediction(row):
     .forecast-card {min-width:0; padding:1rem 1.1rem; border:1px solid #e1e6ef; border-radius:14px;
       background:#fff; box-shadow:0 2px 10px rgba(25,35,55,.035); overflow:hidden;}
     .forecast-title {font-size:clamp(.9rem,3.5vw,1.05rem); color:#667085; margin-bottom:.35rem;}
-    .forecast-value {font-size:clamp(1.35rem,6vw,2rem); font-weight:750; line-height:1.25;
-      letter-spacing:-.03em; overflow-wrap:anywhere; word-break:keep-all;}
+    .forecast-value {font-size:clamp(1.05rem,4.2vw,1.65rem); font-weight:750; line-height:1.28;
+      letter-spacing:-.035em; overflow:visible; overflow-wrap:anywhere; word-break:keep-all;}
     @media (min-width:800px) {.forecast-stack {grid-template-columns:repeat(2,minmax(0,1fr));}}
     </style>
     """, unsafe_allow_html=True)
