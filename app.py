@@ -152,6 +152,10 @@ def render_scan_settings(prefix):
 
 
 st.title("KRX 종가매매 종목 스캐너 v5")
+st.markdown(
+    '<div style="margin-top:-.65rem; color:#697386; font-size:.82rem; font-weight:650;">by. 바빠맘</div>',
+    unsafe_allow_html=True,
+)
 st.caption("시장·업종·수급·공매도·기술 신호와 과거 동일신호 통계를 한 화면에서 확인합니다.")
 st.markdown("""
 <style>
@@ -1539,4 +1543,16 @@ if "scanner_v5_selected" in st.session_state:
 
 st.divider()
 st.caption("연구·정보 제공용 도구입니다. CVD Proxy는 실제 체결 CVD가 아니며, 백테스트에는 거래비용·슬리피지·생존편향이 완전히 반영되지 않습니다. 투자 판단과 책임은 사용자에게 있습니다.")
+st.markdown(
+    """
+    <div style="margin:.55rem 0 1rem; color:#7a8292; font-size:clamp(.68rem,2.2vw,.78rem);
+                line-height:1.5; text-align:center;">
+      © 2026 바빠맘. All Rights Reserved.<br>
+      이 앱의 자체 제작 코드·화면 구성·콘텐츠에 대한 권리는 바빠맘에게 있습니다.
+      허락 없는 복제·배포·변형은 금지되며, 권리 침해 시 관련 법령에 따른 책임이 발생할 수 있습니다.
+      외부 데이터와 오픈소스 구성요소의 권리는 각 제공자에게 있습니다.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
