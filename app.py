@@ -1046,8 +1046,10 @@ with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True)
 matches = pd.DataFrame()
 if query and len(L):
     matches = L[L["Name"].astype(str).str.contains(query, case=False, na=False, regex=False) | L["Code"].str.contains(query, regex=False)].head(30)
+if move_clicked:
+    st.session_state["scanner_v5_hide_market"] = True
+
 if move_clicked and len(matches):
-    st.session_state["scanner_v5_hide_market"] = False
     exact = matches[(matches["Name"].astype(str).str.lower() == query.strip().lower()) | (matches["Code"] == query.strip())]
     r = exact.iloc[0] if len(exact) else matches.iloc[0]
     mkt = str(r.get("Market", "KOSPI")); sec = str(r.get("Sector", r.get("Industry", "")))
