@@ -945,28 +945,25 @@ p["pattern_approach_pct"] = pattern_approach_pct
 with st.spinner("시장환경 확인 중..."):
     market_score, market_label, market_data, market_reasons = market_environment()
 
-st.subheader("오늘 시장환경")
-a, b, c, d = st.columns(4)
-a.metric("시장환경 점수", f"{market_score}/100"); b.metric("판정", market_label)
-c.metric("VIX", "-" if pd.isna(market_data["VIX"]["현재"]) else f"{market_data['VIX']['현재']:.1f}")
-d.metric("나스닥100 선물", "-" if pd.isna(market_data["나스닥100 선물"]["현재"]) else f"{market_data['나스닥100 선물']['현재']:,.0f}", None if pd.isna(market_data["나스닥100 선물"]["전일대비"]) else f"{market_data['나스닥100 선물']['전일대비']:+.2f}%")
-market_view = market_table(market_data)
-st.dataframe(market_table_style(market_view), use_container_width=True, hide_index=True,
-             column_config={"현재": st.column_config.NumberColumn("현재"),
-                            "전일대비": st.column_config.TextColumn("전일대비 (%)"),
-                            "5일 누적": st.column_config.TextColumn("5일 누적 (%)")})
-groups = impact_groups(market_data)
-st.markdown(f"**시장환경 {market_score}/100 · {market_label}**")
-for impact in ("긍정", "부정", "중립"):
-    if groups[impact]:
-        st.markdown(f"**{impact}:** " + " · ".join(groups[impact]))
-if groups["데이터 없음"]:
-    st.caption("데이터 없음: " + " · ".join(groups["데이터 없음"]))
-
-st.caption("최종순위점수는 종목 45%·시장 15%·업종 10%·과거 5일 승률 15%·1차 손익비 10%·표본 신뢰도 5%의 검증 전 설계 가중치입니다. 실전 성과를 보장하지 않습니다.")
-
 L = listings()
 st.subheader("직접 종목검색")
+st.caption("종목명이나 종목코드를 입력해 바로 분석해보세요.")
+with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True):
+    search_col, button_col = st.columns([4, 1])
+    with search_col:
+        query = st.text_input(
+            "종목명 직접 입력",
+            placeholder="여기에 원하는 종목명을 입력하세요",
+            help="PC에서는 종목명을 입력한 뒤 Enter를 눌러도 바로 검색됩니다.",
+        )
+    with button_col:
+        st.write("")
+        move_clicked = st.form_submit_button(
+            "이 종목 분석하기",
+            type="primary",
+            use_container_width=True,
+        )
+
 search_mode = st.radio(
     "조회 방식",
     ["오늘 종가 예측", "익일 예측", "과거 날짜 검증"],
@@ -993,21 +990,6 @@ if search_mode == "과거 날짜 검증":
         min_value=date.today() - timedelta(days=730), max_value=date.today() - timedelta(days=1),
         help="선택한 날의 종가까지 알려졌다고 가정해 다음 거래일 종가를 예측합니다.")
 
-with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True):
-    search_col, button_col = st.columns([4, 1])
-    with search_col:
-        query = st.text_input(
-            "종목명 직접 입력",
-            placeholder="여기에 원하는 종목명을 입력하세요",
-            help="PC에서는 종목명을 입력한 뒤 Enter를 눌러도 바로 검색됩니다.",
-        )
-    with button_col:
-        st.write("")
-        move_clicked = st.form_submit_button(
-            "이 종목으로 이동하기",
-            type="primary",
-            use_container_width=True,
-        )
 matches = pd.DataFrame()
 if query and len(L):
     matches = L[L["Name"].astype(str).str.contains(query, case=False, na=False, regex=False) | L["Code"].str.contains(query, regex=False)].head(30)
@@ -1073,6 +1055,8 @@ if "scanner_v5_validation" in st.session_state and search_mode == "과거 날짜
         """, unsafe_allow_html=True)
         st.caption(f"기준일 {validation['기준일']} → 실제 거래일 {validation['실제일']} · 예상가는 당시 데이터만 사용한 유사표본 가중 중심값입니다.")
 
+st.markdown("### 종목을 모르겠다면")
+st.caption("전체 시장에서 조건에 맞는 후보를 찾아보세요.")
 scan_clicked = st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_container_width=True)
 accumulation_scan_clicked = st.button("매집 흔적 있는 종목만 보기", type="primary", use_container_width=True)
 
@@ -1130,6 +1114,27 @@ if scan_clicked or accumulation_scan_clicked:
         st.warning("현재 기준에서 매집 흔적 점수 50점 이상인 종목이 없습니다.")
     else:
         st.error("분석 결과가 없습니다.")
+
+st.divider()
+st.subheader("오늘 시장환경")
+a, b, c, d = st.columns(4)
+a.metric("시장환경 점수", f"{market_score}/100"); b.metric("판정", market_label)
+c.metric("VIX", "-" if pd.isna(market_data["VIX"]["현재"]) else f"{market_data['VIX']['현재']:.1f}")
+d.metric("나스닥100 선물", "-" if pd.isna(market_data["나스닥100 선물"]["현재"]) else f"{market_data['나스닥100 선물']['현재']:,.0f}", None if pd.isna(market_data["나스닥100 선물"]["전일대비"]) else f"{market_data['나스닥100 선물']['전일대비']:+.2f}%")
+market_view = market_table(market_data)
+st.dataframe(market_table_style(market_view), use_container_width=True, hide_index=True,
+             column_config={"현재": st.column_config.NumberColumn("현재"),
+                            "전일대비": st.column_config.TextColumn("전일대비 (%)"),
+                            "5일 누적": st.column_config.TextColumn("5일 누적 (%)")})
+groups = impact_groups(market_data)
+st.markdown(f"**시장환경 {market_score}/100 · {market_label}**")
+for impact in ("긍정", "부정", "중립"):
+    if groups[impact]:
+        st.markdown(f"**{impact}:** " + " · ".join(groups[impact]))
+if groups["데이터 없음"]:
+    st.caption("데이터 없음: " + " · ".join(groups["데이터 없음"]))
+
+st.caption("최종순위점수는 종목 45%·시장 15%·업종 10%·과거 5일 승률 15%·1차 손익비 10%·표본 신뢰도 5%의 검증 전 설계 가중치입니다. 실전 성과를 보장하지 않습니다.")
 
 if "scanner_v5_all" in st.session_state:
     R = st.session_state["scanner_v5_all"]
