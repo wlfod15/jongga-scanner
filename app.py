@@ -497,8 +497,26 @@ def _weighted_rate(values, weights, condition):
     return float(np.average(mask.astype(float), weights=weights) * 100)
 
 
+def sector_macro_weights(sector_category):
+    """Give sector-relevant overseas moves more influence in the similarity search."""
+    common = {
+        "NQ": 1.15, "VIX": 1.15, "FX": 1.10, "TNX": 1.00,
+        "EWY": 1.20, "KORU": 1.05, "SOX": 1.00, "WTI": 1.00,
+    }
+    sector = str(sector_category or "일반")
+    if sector == "반도체":
+        common.update({"SOX": 2.40, "NQ": 1.45, "TNX": 1.10})
+    elif sector == "성장·기술":
+        common.update({"NQ": 2.20, "SOX": 1.25, "TNX": 1.35})
+    elif sector == "에너지":
+        common.update({"WTI": 2.50, "NQ": .85})
+    elif sector == "항공·운송":
+        common.update({"WTI": 2.40, "FX": 1.45, "NQ": .90})
+    return common
+
+
 def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0,
-                       macro_history=None, macro_current=None):
+                       macro_history=None, macro_current=None, sector_category=None):
     """Use only information known at each signal date; future rows are labels only."""
     base = df.copy()
     aligned = market_ret.reindex(base.index).fillna(0)
@@ -532,7 +550,15 @@ def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0,
     center = hist.median()
     scale = (hist.quantile(.75) - hist.quantile(.25)).replace(0, np.nan)
     scale = scale.fillna(hist.std()).replace(0, 1).fillna(1)
-    distance = (((hist - current[prediction_features].astype(float)) / scale) ** 2).mean(axis=1) ** .5
+    standardized_sq = ((hist - current[prediction_features].astype(float)) / scale) ** 2
+    sector_weights = sector_macro_weights(sector_category)
+    feature_weights = pd.Series(1.0, index=prediction_features)
+    for column in macro_features:
+        prefix = column.split("_", 1)[0]
+        feature_weights[column] = sector_weights.get(prefix, 1.0)
+    distance = (
+        standardized_sq.mul(feature_weights, axis=1).sum(axis=1) / feature_weights.sum()
+    ) ** .5
     take = min(max(min_samples, int(len(distance) * .15)), 80)
     chosen = distance.nsmallest(take)
     if len(chosen) < min_samples:
@@ -566,6 +592,7 @@ def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0,
     return {
         "표본수": len(out), "예측상태": "산출", "신뢰도": confidence,
         "거시지표반영": ", ".join(macro_features) if macro_features else "국내시장만 반영",
+        "업종지표가중": str(sector_category or "시장 공통"),
         "유사도중앙거리": round(float(out["distance"].median()), 2),
         "익일승률%": round(_weighted_rate(out["close"], weights, lambda x: x > 0), 1),
         "익일하락확률%": round(_weighted_rate(out["close"], weights, lambda x: x < 0), 1),
@@ -609,6 +636,60 @@ def merge_close_and_live_forecasts(close_forecast, live_forecast, checked_at=Non
     result["실시간보정상태"] = "산출"
     result["실시간보정시각"] = checked_at or datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M")
     result["실시간참고지표"] = "나스닥100 선물 · EWY · KORU(1/3 정규화) · SOX · VIX · 원/달러 · 미국10년물 · WTI"
+    return result
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def skhynix_adr_returns():
+    """NASDAQ SKHY daily returns; percentage moves avoid ADR ratio/premium distortion."""
+    if not YF_OK:
+        return pd.Series(dtype=float)
+    try:
+        raw = yf.download("SKHY", period="6mo", interval="1d", progress=False,
+                          auto_adjust=False, threads=False)
+        close = pd.to_numeric(extract_close(raw, "SKHY"), errors="coerce").dropna()
+        close.index = pd.to_datetime(close.index).tz_localize(None).normalize()
+        return (close.pct_change() * 100).dropna()
+    except Exception:
+        return pd.Series(dtype=float)
+
+
+def apply_stock_specific_open_signal(forecast, symbol, krx_history):
+    """Blend SKHY's move into SK hynix's open using observed ADR-to-KRX gap history."""
+    result = dict(forecast)
+    if str(symbol).zfill(6) != "000660" or result.get("예측상태") != "산출":
+        return result
+    adr_ret = skhynix_adr_returns()
+    if adr_ret.empty or krx_history is None or len(krx_history) < 3:
+        result["ADR보정상태"] = "SKHY 데이터 부족"
+        return result
+
+    krx = krx_history[["Open", "Close"]].dropna().copy()
+    krx.index = pd.to_datetime(krx.index).tz_localize(None).normalize()
+    krx_gap = (krx["Open"] / krx["Close"].shift(1) - 1) * 100
+    left = pd.DataFrame({"krx_date": krx_gap.index, "gap": krx_gap.values}).sort_values("krx_date")
+    right = pd.DataFrame({"adr_date": adr_ret.index, "adr_ret": adr_ret.values}).sort_values("adr_date")
+    paired = pd.merge_asof(
+        left, right, left_on="krx_date", right_on="adr_date",
+        direction="backward", allow_exact_matches=False,
+    ).dropna()
+    paired = paired[(paired["gap"].abs() <= 30) & (paired["adr_ret"].abs() <= 30)].tail(60)
+    if len(paired) < 10 or paired["adr_ret"].std() == 0:
+        result["ADR보정상태"] = f"SKHY 겹침 표본 부족({len(paired)}회)"
+        return result
+
+    slope, intercept = np.polyfit(paired["adr_ret"].to_numpy(), paired["gap"].to_numpy(), 1)
+    slope = float(np.clip(slope, .15, 1.25))
+    latest_move = float(adr_ret.iloc[-1])
+    adr_implied_gap = float(np.clip(intercept + slope * latest_move, -20, 20))
+    base_open = float(result.get("예상시가평균%", 0.0))
+    blend = float(np.clip(.25 + len(paired) / 100, .35, .60))
+    result["예상시가평균%"] = round((1 - blend) * base_open + blend * adr_implied_gap, 2)
+    result["SKHY등락률%"] = round(latest_move, 2)
+    result["ADR시가보정비중%"] = round(blend * 100)
+    result["ADR겹침표본수"] = int(len(paired))
+    result["ADR보정상태"] = "SKHY 등락률 반영"
+    result["실시간참고지표"] = result.get("실시간참고지표", "") + " · SK하이닉스 ADR(SKHY)"
     return result
 
 
@@ -746,13 +827,14 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
         if do_bt:
             close_bt = similar_prediction(
                 df, mr, p["prediction_horizon"], p["min_prediction_samples"],
-                levels["손절률%"], macro_history,
+                levels["손절률%"], macro_history, sector_category=cat,
             )
             live_bt = similar_prediction(
                 df, mr, p["prediction_horizon"], p["min_prediction_samples"],
-                levels["손절률%"], macro_history, current_macro_features(market_data),
+                levels["손절률%"], macro_history, current_macro_features(market_data), cat,
             )
             bt = merge_close_and_live_forecasts(close_bt, live_bt, now.strftime("%Y-%m-%d %H:%M"))
+            bt = apply_stock_specific_open_signal(bt, symbol, df)
         else:
             bt = {"표본수": 0, "예측상태": "사용 안 함", "신뢰도": "-"}
         combined = round(.60 * f["score"] + .25 * market_score + .15 * sector_score, 1)
@@ -1081,7 +1163,7 @@ def show_accumulation(row, summary):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def detail_prediction_snapshot(symbol, market, price_date, horizon, min_samples, stop_pct, lookback_days):
+def detail_prediction_snapshot(symbol, market, sector_category, price_date, horizon, min_samples, stop_pct, lookback_days):
     """Recalculate missing scan statistics with a longer history for detail view."""
     symbol = str(symbol).zfill(6)
     extended_days = max(int(lookback_days) * 3, 1095)
@@ -1103,12 +1185,14 @@ def detail_prediction_snapshot(symbol, market, price_date, horizon, min_samples,
         macro_history = macro_prediction_history(start)
         close_result = similar_prediction(
             history, market_history, horizon, min_samples, stop_pct, macro_history,
+            sector_category=sector_category,
         )
         live_result = similar_prediction(
             history, market_history, horizon, min_samples, stop_pct, macro_history,
-            current_macro_features(market_data),
+            current_macro_features(market_data), sector_category,
         )
         result = merge_close_and_live_forecasts(close_result, live_result)
+        result = apply_stock_specific_open_signal(result, symbol, history)
         result["예측계산기준"] = f"상세보기 확장 재계산 · 최근 약 {extended_days // 365}년"
         return result
     except Exception as exc:
@@ -1134,6 +1218,7 @@ def ensure_detail_prediction(row):
     refreshed = detail_prediction_snapshot(
         hydrated.get("종목코드", ""),
         hydrated.get("시장", "KOSPI"),
+        hydrated.get("업종분류", "일반"),
         hydrated.get("날짜"),
         horizon,
         min_samples,
@@ -1198,6 +1283,13 @@ def show_detail(row):
     st.markdown(f"#### {detail_context['구분']} 통계")
     st.caption(row.get("예측계산기준", "후보 스캔 시 계산"))
     st.caption(f"예측 변수: {row.get('거시지표반영', '국내시장만 반영')}")
+    st.caption(f"업종별 해외지표 가중: {row.get('업종지표가중', row.get('업종분류', '일반'))}")
+    if row.get("ADR보정상태") == "SKHY 등락률 반영":
+        st.caption(
+            f"SK하이닉스 ADR(SKHY) {row.get('SKHY등락률%', 0):+.2f}% · "
+            f"겹침 표본 {int(row.get('ADR겹침표본수', 0))}회 · "
+            f"예상 시가 보정비중 {int(row.get('ADR시가보정비중%', 0))}%"
+        )
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(f"{detail_context['확률접두어']} 상승 확률", probability("익일승률%"))
     c2.metric("갭상승 확률", probability("갭상승확률%"))
@@ -1478,6 +1570,13 @@ def show_simple_prediction(row):
     c2.metric("보합출발확률", probability("보합출발확률%"))
     st.caption("갭상승·갭하락·보합출발은 다음 거래일 시가를 기준일 종가와 비교해 각각 계산합니다.")
     st.caption(f"예측 변수: {row.get('거시지표반영', '국내시장만 반영')}")
+    st.caption(f"업종별 해외지표 가중: {row.get('업종지표가중', row.get('업종분류', '일반'))}")
+    if row.get("ADR보정상태") == "SKHY 등락률 반영":
+        st.caption(
+            f"SK하이닉스 ADR(SKHY) {row.get('SKHY등락률%', 0):+.2f}% · "
+            f"겹침 표본 {int(row.get('ADR겹침표본수', 0))}회 · "
+            f"예상 시가 보정비중 {int(row.get('ADR시가보정비중%', 0))}%"
+        )
     night_quote = current_kospi200_night()
     if night_quote:
         st.info(
