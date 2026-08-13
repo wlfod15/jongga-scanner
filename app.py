@@ -854,12 +854,71 @@ def show_accumulation(row, summary):
         st.info(f"근거: {result['근거']}")
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def detail_prediction_snapshot(symbol, market, price_date, horizon, min_samples, stop_pct, lookback_days):
+    """Recalculate missing scan statistics with a longer history for detail view."""
+    symbol = str(symbol).zfill(6)
+    extended_days = max(int(lookback_days) * 3, 1095)
+    start = (date.today() - timedelta(days=extended_days)).isoformat()
+    try:
+        raw = fdr.DataReader(symbol, start)
+        history = prep(raw)
+        if history.empty:
+            return {"표본수": 0, "예측상태": "가격 데이터 부족", "신뢰도": "산출 불가"}
+
+        # Keep the forecast anchored to the same confirmed close used by the scan.
+        cutoff = pd.to_datetime(price_date, errors="coerce")
+        if pd.notna(cutoff):
+            history = history[pd.to_datetime(history.index) <= cutoff]
+        if len(history) < 80:
+            return {"표본수": 0, "예측상태": "가격 데이터 부족", "신뢰도": "산출 불가"}
+
+        market_history = benchmark(market, start).reindex(history.index)
+        result = similar_prediction(history, market_history, horizon, min_samples, stop_pct)
+        result["예측계산기준"] = f"상세보기 확장 재계산 · 최근 약 {extended_days // 365}년"
+        return result
+    except Exception as exc:
+        return {
+            "표본수": 0,
+            "예측상태": "재계산 실패",
+            "신뢰도": "산출 불가",
+            "예측오류": type(exc).__name__,
+        }
+
+
+def ensure_detail_prediction(row):
+    """Hydrate detail statistics even when scan-time backtesting was disabled/insufficient."""
+    hydrated = dict(row)
+    if hydrated.get("예측상태") == "산출":
+        hydrated.setdefault("예측계산기준", "후보 스캔 시 계산")
+        return hydrated
+
+    horizon = int(p.get("prediction_horizon", 5))
+    min_samples = int(p.get("min_prediction_samples", 20))
+    stop_pct = float(hydrated.get("손절률%", 3.0) or 3.0)
+    refreshed = detail_prediction_snapshot(
+        hydrated.get("종목코드", ""),
+        hydrated.get("시장", "KOSPI"),
+        hydrated.get("날짜"),
+        horizon,
+        min_samples,
+        stop_pct,
+        int(p.get("lookback", 365)),
+    )
+    hydrated.update(refreshed)
+    return hydrated
+
+
 def show_detail(row):
     if st.button("← 간편보기로 돌아가기", use_container_width=True, key="back_to_simple_view"):
         st.session_state["scanner_v5_selected_mode"] = "simple"
         st.query_params["view"] = "simple"
         st.rerun()
     st.subheader(f"{row['종목명']} ({row['종목코드']}) 핵심 요약")
+    if row.get("예측상태") != "산출":
+        with st.spinner("상세 통계를 확장 데이터로 다시 계산 중..."):
+            row = ensure_detail_prediction(row)
+        st.session_state["scanner_v5_selected"] = row
     with st.spinner("수급·공매도 데이터 확인 중..."):
         summary, flow, short = flow_and_short(row["종목코드"])
 
@@ -869,6 +928,14 @@ def show_detail(row):
     short_text = "KRX 연결 필요" if pd.isna(short_ratio) else f"{short_ratio:.2f}%"
     sample_n = int(row.get("표본수", 0) or 0)
     prediction_ok = row.get("예측상태") == "산출"
+    minimum_n = int(p.get("min_prediction_samples", 20))
+    prediction_status = str(row.get("예측상태", "산출 불가"))
+    if sample_n:
+        unavailable_text = f"표본 {sample_n}회 · 최소 {minimum_n}회 미달"
+    elif prediction_status == "사용 안 함":
+        unavailable_text = "상세 재계산 불가"
+    else:
+        unavailable_text = prediction_status
     entry = float(row["진입가"])
     horizon = next((int(k.split("일내")[0]) for k in row.keys() if "일내+3%도달%" in k), 5)
     reach_key = f"{horizon}일내+3%도달%"
@@ -878,12 +945,12 @@ def show_detail(row):
 
     def price_range(low_key, high_key):
         if not prediction_ok or pd.isna(row.get(low_key, np.nan)) or pd.isna(row.get(high_key, np.nan)):
-            return "표본 부족"
+            return unavailable_text
         return f"{pct_price(row[low_key]):,.0f}~{pct_price(row[high_key]):,.0f}원"
 
     def probability(key):
         value = row.get(key, np.nan)
-        return "표본 부족" if not prediction_ok or pd.isna(value) else f"{float(value):.0f}%"
+        return unavailable_text if not prediction_ok or pd.isna(value) else f"{float(value):.0f}%"
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("진입 추천 점수", f"{row['종합점수']:.1f}/100", row["판정"])
@@ -893,6 +960,7 @@ def show_detail(row):
 
     detail_context = prediction_context(row["날짜"], row.get("예측모드", "auto"))
     st.markdown(f"#### {detail_context['구분']} 통계")
+    st.caption(row.get("예측계산기준", "후보 스캔 시 계산"))
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(f"{detail_context['확률접두어']} 상승 확률", probability("익일승률%"))
     c2.metric("갭상승 확률", probability("갭상승확률%"))
@@ -902,12 +970,12 @@ def show_detail(row):
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("예상 시가 범위", price_range("예상시가하단%", "예상시가상단%"))
     c2.metric("예상 종가 범위", price_range("예상종가하단%", "예상종가상단%"))
-    c3.metric("예상 고가", "표본 부족" if not prediction_ok else f"{pct_price(row['예상고가%']):,.0f}원")
-    c4.metric("예상 저가", "표본 부족" if not prediction_ok else f"{pct_price(row['예상저가%']):,.0f}원")
+    c3.metric("예상 고가", unavailable_text if not prediction_ok else f"{pct_price(row['예상고가%']):,.0f}원")
+    c4.metric("예상 저가", unavailable_text if not prediction_ok else f"{pct_price(row['예상저가%']):,.0f}원")
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("유사 표본", f"{sample_n}회" if prediction_ok else "표본 부족")
-    c2.metric("예측 신뢰도", row.get("신뢰도", "표본 부족"))
+    c1.metric("유사 표본", f"{sample_n}회" if sample_n else unavailable_text)
+    c2.metric("예측 신뢰도", row.get("신뢰도", "산출 불가"))
     c3.metric("외국인 5일", foreign_text)
     c4.metric("공매도 비중", short_text)
 
@@ -1279,7 +1347,8 @@ pattern_filter = st.session_state["scanner_v5_setting_pattern_filter"]
 
 p = {"min_value": min_value * 1e8, "min_price": min_price, "min_vr": min_vr, "rsi_lo": rlo, "rsi_hi": rhi,
      "close_pos": close_pos, "max_wick": max_wick, "min_rel": min_rel, "max_gap": max_gap, "min_score": min_score,
-     "prediction_horizon": prediction_horizon, "min_prediction_samples": min_prediction_samples}
+     "lookback": lookback, "prediction_horizon": prediction_horizon,
+     "min_prediction_samples": min_prediction_samples}
 p["pattern_approach_pct"] = pattern_approach_pct
 
 with st.spinner("시장환경 확인 중..."):
@@ -1316,29 +1385,47 @@ if search_mode == "과거 날짜 검증":
 
 st.subheader("직접 종목검색")
 st.caption("종목명 앞 두 글자 이상을 입력하면 일치하는 종목이 모두 표시됩니다. 예: SK → SK하이닉스, SK스퀘어")
-stock_options = [""]
-if len(L):
-    stock_options += [
-        f"{row['Name']} ({row['Code']})"
-        for _, row in L.sort_values(["Name", "Code"]).iterrows()
-    ]
-with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True):
-    search_col, button_col = st.columns([4, 1])
-    with search_col:
-        selected_stock = st.selectbox(
-            "종목명 또는 종목코드 검색",
-            stock_options,
-            index=0,
-            placeholder="두 글자 이상 입력해 종목을 선택하세요",
-            help="검색어와 일치하는 모든 KRX 종목이 목록에 표시됩니다. PC에서는 종목 선택 후 Enter를 눌러도 분석됩니다.",
-        )
-    with button_col:
-        st.write("")
-        move_clicked = st.form_submit_button(
-            "이 종목 예상가 확인하기",
-            type="primary",
-            use_container_width=True,
-        )
+search_query = st.text_input(
+    "종목명 또는 종목코드 입력",
+    key="scanner_v5_stock_search_query",
+    placeholder="예: 삼성전자 또는 005930",
+    help="모바일에서도 이 칸을 눌러 종목명이나 6자리 종목코드를 직접 입력할 수 있습니다.",
+)
+
+search_results = pd.DataFrame()
+normalized_query = str(search_query).strip()
+if len(L) and len(normalized_query) >= 2:
+    searchable = L.copy()
+    searchable["Code"] = searchable["Code"].astype(str).str.extract(r"(\d+)", expand=False).fillna("").str.zfill(6)
+    name_match = searchable["Name"].astype(str).str.contains(normalized_query, case=False, regex=False, na=False)
+    code_match = searchable["Code"].str.contains(normalized_query, regex=False, na=False)
+    search_results = searchable[name_match | code_match].sort_values(["Name", "Code"]).head(50)
+
+stock_options = [
+    f"{row['Name']} ({row['Code']})"
+    for _, row in search_results.iterrows()
+]
+if stock_options:
+    selected_stock = st.selectbox(
+        "일치 종목 선택",
+        stock_options,
+        key="scanner_v5_stock_search_result",
+        help="입력한 검색어와 일치하는 종목입니다.",
+    )
+elif len(normalized_query) >= 2:
+    selected_stock = ""
+    st.caption("일치하는 KRX 종목이 없습니다.")
+else:
+    selected_stock = ""
+    st.caption("종목명 또는 종목코드를 두 글자 이상 입력하세요.")
+
+move_clicked = st.button(
+    "이 종목 예상가 확인하기",
+    type="primary",
+    use_container_width=True,
+    disabled=not bool(selected_stock),
+    key="scanner_v5_direct_stock_submit",
+)
 
 direct_status = st.empty()
 if st.session_state.get("scanner_v5_direct_notice"):
@@ -1348,7 +1435,8 @@ query = selected_stock
 matches = pd.DataFrame()
 if selected_stock and len(L):
     selected_code = selected_stock.rsplit("(", 1)[-1].rstrip(")")
-    matches = L[L["Code"].astype(str) == selected_code].head(1)
+    listing_codes = L["Code"].astype(str).str.extract(r"(\d+)", expand=False).fillna("").str.zfill(6)
+    matches = L[listing_codes == selected_code].head(1)
 if move_clicked:
     st.session_state["scanner_v5_hide_market"] = True
     for state_key in (
