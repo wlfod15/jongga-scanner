@@ -382,6 +382,10 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
         now = datetime.now(ZoneInfo("Asia/Seoul"))
         market_hours = now.weekday() < 5 and (9, 0) <= (now.hour, now.minute) <= (15, 40)
         latest_is_today = len(raw) and pd.Timestamp(raw.index[-1]).date() == now.date()
+        today_open = (
+            float(pd.to_numeric(pd.Series([raw["Open"].iloc[-1]]), errors="coerce").iloc[0])
+            if latest_is_today and "Open" in raw.columns else np.nan
+        )
         use_previous_close = forecast_mode == "today" or (forecast_mode == "auto" and market_hours)
         if use_previous_close and latest_is_today:
             raw = raw.iloc[:-1]  # 오늘 종가 예측은 장중 미완성 일봉을 제외
@@ -405,6 +409,7 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
                "현재가구분": "장중 최신 확인가" if market_hours and latest_is_today else "최근 KRX 종가",
                "현재가기준일": latest_price_date,
                "현재가조회시각": now.strftime("%Y-%m-%d %H:%M:%S"),
+               "오늘시가": round(today_open) if pd.notna(today_open) else np.nan,
                "종목점수": f["score"],
                "시장환경": market_score, "업종환경": sector_score, "종합점수": combined, "판정": decision,
                "탈락사유": "없음" if not f["failures"] else " / ".join(f["failures"]), "유형": f["type"], "RSI14": round(float(r["RSI"]), 1),
@@ -860,13 +865,36 @@ def show_simple_prediction(row):
     current_label = row.get("현재가구분", "최근 KRX 종가")
     price_text = "데이터 없음" if pd.isna(current_price) else f"{float(current_price):,.0f}원"
     change_text = None if pd.isna(current_change) else f"{float(current_change):+.2f}%"
-    st.metric(current_label, price_text, change_text)
+    prediction_ok = row.get("예측상태") == "산출"
+    entry = float(row["진입가"])
+
+    if row.get("예측모드") == "today":
+        today_open = row.get("오늘시가", np.nan)
+        open_low_pct = row.get("예상시가하단%", np.nan)
+        open_high_pct = row.get("예상시가상단%", np.nan)
+        expected_open = (
+            entry * (1 + (float(open_low_pct) + float(open_high_pct)) / 200)
+            if prediction_ok and pd.notna(open_low_pct) and pd.notna(open_high_pct) else np.nan
+        )
+        open_gap = (
+            (float(today_open) / expected_open - 1) * 100
+            if pd.notna(today_open) and pd.notna(expected_open) and expected_open else np.nan
+        )
+        price_col, open_col, gap_col = st.columns(3)
+        price_col.metric(current_label, price_text, change_text)
+        open_col.metric("오늘 시가", "데이터 없음" if pd.isna(today_open) else f"{float(today_open):,.0f}원")
+        gap_col.metric("예상 대비 시가 괴리율", "표본 부족" if pd.isna(open_gap) else f"{open_gap:+.2f}%")
+        st.caption(
+            "시가 괴리율은 실제 오늘 시가와 예상 시가 범위의 중앙 대표값을 비교합니다. "
+            "양수는 예상보다 높게, 음수는 예상보다 낮게 출발했다는 뜻입니다."
+        )
+    else:
+        st.metric(current_label, price_text, change_text)
+
     st.caption(
         f"가격 기준일 {row.get('현재가기준일', row.get('날짜', '-'))} · "
         f"조회 시각 {row.get('현재가조회시각', '-')} · 장중 가격은 지연될 수 있으며 실시간 체결가를 보장하지 않습니다."
     )
-    prediction_ok = row.get("예측상태") == "산출"
-    entry = float(row["진입가"])
     horizon = next((int(k.split("일내")[0]) for k in row.keys() if "일내+3%도달%" in k), 5)
     reach_key = f"{horizon}일내+3%도달%"
 
