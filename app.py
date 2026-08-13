@@ -68,6 +68,17 @@ html, body, [data-testid="stAppViewContainer"] { background: #f6f8fb; }
 """, unsafe_allow_html=True)
 st.title("KRX 종가매매 종목 스캐너 v5")
 st.caption("시장·업종·수급·공매도·기술 신호와 과거 동일신호 통계를 한 화면에서 확인합니다.")
+st.markdown("""
+<div style="margin:.65rem 0 1rem; padding:.85rem 1rem; border:1px solid #e45852;
+            border-left:5px solid #e45852; border-radius:.7rem; background:#fff3f2;
+            color:#c93632; font-size:clamp(.88rem,2.8vw,1rem); line-height:1.55;">
+  <strong>예상가격 계산 원리</strong><br>
+  조회 기준 종가에 과거 유사신호의 다음 거래일 시가·종가·고가·저가 분포를 적용하고,
+  ATR14 변동성을 반영해 예상 범위와 대표값을 계산합니다.<br>
+  <strong>경고:</strong> 모든 점수와 예상가격은 수익이나 가격 상승을 보장하지 않습니다.
+  실제 투자 결과에 대해 서비스 제공자는 책임지지 않으며, 반드시 참고자료로만 사용해야 합니다.
+</div>
+""", unsafe_allow_html=True)
 
 
 # ── 지표와 가격 데이터 ──────────────────────────────────────────────
