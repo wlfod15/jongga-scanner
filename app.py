@@ -30,6 +30,8 @@ try:
 except Exception:
     YF_OK = False
 
+ANALYSIS_ERRORS = {}
+
 
 st.set_page_config(page_title="KRX 종가매매 스캐너 v5", layout="wide")
 st.markdown("""
@@ -960,7 +962,8 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
         out["패턴 접근범위%"] = p.get("pattern_approach_pct", 3.0)
         out["최종순위점수"] = ranking_score(f["score"], market_score, sector_score, bt, levels["1차손익비R"])
         return out
-    except Exception:
+    except Exception as exc:
+        ANALYSIS_ERRORS[str(symbol).zfill(6)] = f"{type(exc).__name__}: {exc}"
         return None
 
 
@@ -1951,7 +1954,8 @@ if move_clicked and len(matches):
             direct_status.success(st.session_state["scanner_v5_direct_notice"])
             st.query_params["view"] = "simple"
         else:
-            st.session_state["scanner_v5_direct_notice"] = "분석에 필요한 가격 데이터가 부족합니다."
+            error_detail = ANALYSIS_ERRORS.get(str(r.Code).zfill(6), "가격 데이터 조회 실패")
+            st.session_state["scanner_v5_direct_notice"] = f"분석 실패 · {error_detail}"
             direct_status.warning(st.session_state["scanner_v5_direct_notice"])
 elif move_clicked and query:
     st.session_state["scanner_v5_direct_notice"] = "일치하는 KRX 종목이 없습니다."
