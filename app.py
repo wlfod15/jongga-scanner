@@ -1005,6 +1005,7 @@ matches = pd.DataFrame()
 if query and len(L):
     matches = L[L["Name"].astype(str).str.contains(query, case=False, na=False, regex=False) | L["Code"].str.contains(query, regex=False)].head(30)
 if move_clicked and len(matches):
+    st.session_state["scanner_v5_hide_market"] = False
     exact = matches[(matches["Name"].astype(str).str.lower() == query.strip().lower()) | (matches["Code"] == query.strip())]
     r = exact.iloc[0] if len(exact) else matches.iloc[0]
     mkt = str(r.get("Market", "KOSPI")); sec = str(r.get("Sector", r.get("Industry", "")))
@@ -1072,6 +1073,7 @@ scan_clicked = st.button("오늘 종가 매매 후보 찾아보기", type="prima
 accumulation_scan_clicked = st.button("매집 흔적 있는 종목만 보기", type="primary", use_container_width=True)
 
 if scan_clicked or accumulation_scan_clicked:
+    st.session_state["scanner_v5_hide_market"] = True
     scan = L.copy()
     if market_filter != "전체" and "Market" in scan.columns: scan = scan[scan["Market"].astype(str).str.upper().str.startswith(market_filter)]
     cap = next((c for c in ("Marcap", "MarketCap") if c in scan.columns), None)
@@ -1126,26 +1128,27 @@ if scan_clicked or accumulation_scan_clicked:
     else:
         st.error("분석 결과가 없습니다.")
 
-st.divider()
-st.subheader("오늘 시장환경")
-a, b, c, d = st.columns(4)
-a.metric("시장환경 점수", f"{market_score}/100"); b.metric("판정", market_label)
-c.metric("VIX", "-" if pd.isna(market_data["VIX"]["현재"]) else f"{market_data['VIX']['현재']:.1f}")
-d.metric("나스닥100 선물", "-" if pd.isna(market_data["나스닥100 선물"]["현재"]) else f"{market_data['나스닥100 선물']['현재']:,.0f}", None if pd.isna(market_data["나스닥100 선물"]["전일대비"]) else f"{market_data['나스닥100 선물']['전일대비']:+.2f}%")
-market_view = market_table(market_data)
-st.dataframe(market_table_style(market_view), use_container_width=True, hide_index=True,
-             column_config={"현재": st.column_config.NumberColumn("현재"),
-                            "전일대비": st.column_config.TextColumn("전일대비 (%)"),
-                            "5일 누적": st.column_config.TextColumn("5일 누적 (%)")})
-groups = impact_groups(market_data)
-st.markdown(f"**시장환경 {market_score}/100 · {market_label}**")
-for impact in ("긍정", "부정", "중립"):
-    if groups[impact]:
-        st.markdown(f"**{impact}:** " + " · ".join(groups[impact]))
-if groups["데이터 없음"]:
-    st.caption("데이터 없음: " + " · ".join(groups["데이터 없음"]))
-
-st.caption("최종순위점수는 종목 45%·시장 15%·업종 10%·과거 5일 승률 15%·1차 손익비 10%·표본 신뢰도 5%의 검증 전 설계 가중치입니다. 실전 성과를 보장하지 않습니다.")
+if not st.session_state.get("scanner_v5_hide_market", False):
+    st.divider()
+    st.subheader("오늘 시장환경")
+    a, b, c, d = st.columns(4)
+    a.metric("시장환경 점수", f"{market_score}/100"); b.metric("판정", market_label)
+    c.metric("VIX", "-" if pd.isna(market_data["VIX"]["현재"]) else f"{market_data['VIX']['현재']:.1f}")
+    d.metric("나스닥100 선물", "-" if pd.isna(market_data["나스닥100 선물"]["현재"]) else f"{market_data['나스닥100 선물']['현재']:,.0f}", None if pd.isna(market_data["나스닥100 선물"]["전일대비"]) else f"{market_data['나스닥100 선물']['전일대비']:+.2f}%")
+    market_view = market_table(market_data)
+    st.dataframe(market_table_style(market_view), use_container_width=True, hide_index=True,
+                 column_config={"현재": st.column_config.NumberColumn("현재"),
+                                "전일대비": st.column_config.TextColumn("전일대비 (%)"),
+                                "5일 누적": st.column_config.TextColumn("5일 누적 (%)")})
+    groups = impact_groups(market_data)
+    st.markdown(f"**시장환경 {market_score}/100 · {market_label}**")
+    for impact in ("긍정", "부정", "중립"):
+        if groups[impact]:
+            st.markdown(f"**{impact}:** " + " · ".join(groups[impact]))
+    if groups["데이터 없음"]:
+        st.caption("데이터 없음: " + " · ".join(groups["데이터 없음"]))
+    
+    st.caption("최종순위점수는 종목 45%·시장 15%·업종 10%·과거 5일 승률 15%·1차 손익비 10%·표본 신뢰도 5%의 검증 전 설계 가중치입니다. 실전 성과를 보장하지 않습니다.")
 
 if "scanner_v5_all" in st.session_state:
     R = st.session_state["scanner_v5_all"]
