@@ -1418,55 +1418,28 @@ if search_mode == "과거 날짜 검증":
         help="선택한 날의 종가까지 알려졌다고 가정해 다음 거래일 종가를 예측합니다.")
 
 st.subheader("직접 종목검색")
-st.caption("종목명 앞 두 글자 이상을 입력하고 ‘종목 찾기’를 누르면 일치하는 종목이 모두 표시됩니다. 예: 삼성 → 삼성전자·삼성SDI")
-with st.form("scanner_v5_stock_lookup_form", clear_on_submit=False, enter_to_submit=True):
-    search_query = st.text_input(
-        "종목명 또는 종목코드 입력",
-        key="scanner_v5_stock_search_query",
-        placeholder="예: 삼성 또는 005930",
-        help="두 글자 이상 입력한 뒤 키보드의 이동·완료 또는 종목 찾기를 누르세요.",
-    )
-    find_stock_clicked = st.form_submit_button(
-        "종목 찾기",
-        type="secondary",
-        use_container_width=True,
-    )
-
-if find_stock_clicked:
-    normalized_query = unicodedata.normalize("NFC", str(search_query)).strip()
-    stock_options = []
-    if len(L) and len(normalized_query) >= 2:
-        searchable = L.copy()
-        searchable["Code"] = searchable["Code"].astype(str).str.extract(r"(\d+)", expand=False).fillna("").str.zfill(6)
-        searchable["검색용종목명"] = searchable["Name"].astype(str).map(
-            lambda value: unicodedata.normalize("NFC", value).casefold()
-        )
-        name_match = searchable["검색용종목명"].str.contains(normalized_query.casefold(), regex=False, na=False)
-        code_match = searchable["Code"].str.contains(normalized_query, regex=False, na=False)
-        search_results = searchable[name_match | code_match].sort_values(["Name", "Code"]).head(50)
-        stock_options = [f"{row['Name']} ({row['Code']})" for _, row in search_results.iterrows()]
-    st.session_state["scanner_v5_stock_search_options"] = stock_options
-    st.session_state["scanner_v5_stock_search_submitted"] = normalized_query
-    st.session_state.pop("scanner_v5_stock_search_result", None)
-
-stock_options = st.session_state.get("scanner_v5_stock_search_options", [])
-submitted_query = st.session_state.get("scanner_v5_stock_search_submitted", "")
-if stock_options:
-    selected_stock = st.selectbox(
-        f"‘{submitted_query}’ 일치 종목 선택 ({len(stock_options)}개)",
-        stock_options,
-        key="scanner_v5_stock_search_result",
-        help="입력한 검색어와 일치하는 종목입니다.",
-    )
-elif submitted_query and len(submitted_query) >= 2 and len(L):
-    selected_stock = ""
-    st.caption("일치하는 KRX 종목이 없습니다.")
-elif submitted_query and not len(L):
-    selected_stock = ""
+st.caption("아래 검색창에 종목명 두 글자 이상 또는 종목코드를 입력하면 일치 종목이 바로 표시됩니다.")
+for obsolete_search_key in (
+    "scanner_v5_stock_search_options", "scanner_v5_stock_search_submitted",
+    "scanner_v5_stock_search_result", "scanner_v5_stock_search_query",
+):
+    st.session_state.pop(obsolete_search_key, None)
+stock_options = [""]
+if len(L):
+    stock_options += [
+        f"{row['Name']} ({str(row['Code']).zfill(6)})"
+        for _, row in L.sort_values(["Name", "Code"]).iterrows()
+    ]
+selected_stock = st.selectbox(
+    "종목명 또는 종목코드 검색",
+    stock_options,
+    index=0,
+    key="scanner_v5_direct_stock_dropdown_v2",
+    placeholder="예: 삼성 또는 005930",
+    help="검색창에 글자를 입력하면 일치하는 종목 목록이 드롭다운 안에 바로 표시됩니다.",
+)
+if not len(L):
     st.warning("KRX 종목 목록을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.")
-else:
-    selected_stock = ""
-    st.caption("두 글자 이상 입력한 뒤 ‘종목 찾기’를 누르세요.")
 
 move_clicked = st.button(
     "이 종목 예상가 확인하기",
