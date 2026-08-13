@@ -562,6 +562,8 @@ def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0,
         "거시지표반영": ", ".join(macro_features) if macro_features else "국내시장만 반영",
         "유사도중앙거리": round(float(out["distance"].median()), 2),
         "익일승률%": round(_weighted_rate(out["close"], weights, lambda x: x > 0), 1),
+        "익일하락확률%": round(_weighted_rate(out["close"], weights, lambda x: x < 0), 1),
+        "익일보합확률%": round(_weighted_rate(out["close"], weights, lambda x: np.isclose(x, 0, atol=1e-12)), 1),
         "갭상승확률%": round(_weighted_rate(out["open"], weights, lambda x: x > 0), 1),
         "갭하락확률%": round(_weighted_rate(out["open"], weights, lambda x: x < 0), 1),
         "보합출발확률%": round(_weighted_rate(out["open"], weights, lambda x: np.isclose(x, 0, atol=1e-12)), 1),
@@ -577,6 +579,81 @@ def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0,
         f"{horizon}일평균%": round(float(np.average(out["horizon_close"], weights=weights)), 2),
         "평균MAE%": round(float(np.average(out["min_low"], weights=weights)), 2),
     }
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def kospi_next_session_prediction(lookback_days, min_samples, macro_current):
+    start = (date.today() - timedelta(days=max(int(lookback_days) * 3, 1095))).isoformat()
+    try:
+        raw = fdr.DataReader("KS11", start)
+        frame = prep(raw)
+        if len(frame) < 100:
+            return {"예측상태": "가격 데이터 부족", "표본수": 0}
+        kospi_return = frame["Close"].pct_change() * 100
+        result = similar_prediction(
+            frame, kospi_return, horizon=1, min_samples=int(min_samples), stop_pct=2.0,
+            macro_history=macro_prediction_history(start), macro_current=dict(macro_current),
+        )
+        result["기준지수"] = float(frame["Close"].iloc[-1])
+        result["기준일"] = pd.Timestamp(frame.index[-1]).strftime("%Y-%m-%d")
+        return result
+    except Exception as exc:
+        return {"예측상태": "산출 실패", "표본수": 0, "예측오류": type(exc).__name__}
+
+
+def render_kospi_next_prediction(market_data, lookback_days, min_samples):
+    st.subheader("익일 코스피 예상 수치")
+    st.markdown(
+        """
+        <div style="margin:-.25rem 0 .8rem;color:#a94a4a;font-size:clamp(.7rem,2.3vw,.8rem);line-height:1.45;">
+        ※ 과거 유사 시장과 거시지표를 이용한 통계적 참고값이며 실제 익일 지수나 수익을 보장하지 않습니다.
+        돌발 뉴스·정책·환율 및 야간시장 변화에 따라 결과가 달라질 수 있습니다.
+        </div>
+        """, unsafe_allow_html=True,
+    )
+    macro_current = current_macro_features(market_data)
+    result = kospi_next_session_prediction(
+        lookback_days, min_samples, tuple(sorted(macro_current.items()))
+    )
+    if result.get("예측상태") != "산출":
+        st.warning(f"코스피 예상 수치를 산출하지 못했습니다. 상태: {result.get('예측상태', '데이터 없음')}")
+        return
+
+    def probability(key):
+        value = result.get(key, np.nan)
+        return "데이터 없음" if pd.isna(value) else f"{float(value):.0f}%"
+
+    def percent_range(low_key, high_key):
+        low, high = result.get(low_key, np.nan), result.get(high_key, np.nan)
+        if pd.isna(low) or pd.isna(high):
+            return "데이터 없음"
+        return f"{float(low):+.2f}% ~ {float(high):+.2f}%"
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("익일 상승확률", probability("익일승률%"))
+    c2.metric("익일 하락확률", probability("익일하락확률%"))
+    c3.metric("익일 보합확률", probability("익일보합확률%"))
+    c1, c2, c3 = st.columns(3)
+    c1.metric("갭상승확률", probability("갭상승확률%"))
+    c2.metric("갭하락확률", probability("갭하락확률%"))
+    c3.metric("보합출발확률", probability("보합출발확률%"))
+    c1, c2 = st.columns(2)
+    c1.metric("예상 시가 등락 범위", percent_range("예상시가하단%", "예상시가상단%"))
+    c2.metric("예상 종가 등락 범위", percent_range("예상종가하단%", "예상종가상단%"))
+
+    st.caption(
+        f"기준일 {result.get('기준일', '-')} · 코스피 {result.get('기준지수', np.nan):,.2f} · "
+        f"유사표본 {int(result.get('표본수', 0))}회 · 신뢰도 {result.get('신뢰도', '-')}"
+    )
+    st.caption(f"반영 변수: {result.get('거시지표반영', '국내시장만 반영')}")
+    night_quote = current_kospi200_night()
+    if night_quote:
+        st.info(
+            f"코스피200 야간선물 {night_quote.get('변동률%', 0):+.2f}% · "
+            f"거래량 {night_quote.get('거래량', 0):,} · 야간 참고신호"
+        )
+    else:
+        st.caption("코스피200 야간선물은 야간장·개장 전 수신 가능 시간에 표시됩니다.")
 
 
 def ranking_score(stock_score, market_score, sector_score, bt, rr):
@@ -1705,6 +1782,9 @@ if scan_clicked or accumulation_scan_clicked:
         scan_status.warning(st.session_state["scanner_v5_scan_notice"])
 
 if not st.session_state.get("scanner_v5_hide_market", False):
+    st.divider()
+    with st.spinner("익일 코스피 예상 수치 계산 중..."):
+        render_kospi_next_prediction(market_data, lookback, min_prediction_samples)
     st.divider()
     st.subheader("오늘 시장환경")
     a, b, c, d = st.columns(4)
