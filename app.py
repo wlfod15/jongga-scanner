@@ -496,6 +496,8 @@ def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0):
         "유사도중앙거리": round(float(out["distance"].median()), 2),
         "익일승률%": round(_weighted_rate(out["close"], weights, lambda x: x > 0), 1),
         "갭상승확률%": round(_weighted_rate(out["open"], weights, lambda x: x > 0), 1),
+        "갭하락확률%": round(_weighted_rate(out["open"], weights, lambda x: x < 0), 1),
+        "보합출발확률%": round(_weighted_rate(out["open"], weights, lambda x: np.isclose(x, 0, atol=1e-12)), 1),
         f"{horizon}일내+3%도달%": round(_weighted_rate(out["max_high"], weights, lambda x: x >= 3), 1),
         "초기손절도달확률%": round(_weighted_rate(out["min_low"], weights, lambda x: x <= -abs(stop_pct)), 1),
         "예상시가하단%": round(open_low, 2), "예상시가상단%": round(open_high, 2),
@@ -908,7 +910,8 @@ def detail_prediction_snapshot(symbol, market, price_date, horizon, min_samples,
 def ensure_detail_prediction(row):
     """Hydrate detail statistics even when scan-time backtesting was disabled/insufficient."""
     hydrated = dict(row)
-    if hydrated.get("예측상태") == "산출":
+    required_gap_keys = {"갭상승확률%", "갭하락확률%", "보합출발확률%"}
+    if hydrated.get("예측상태") == "산출" and required_gap_keys.issubset(hydrated):
         hydrated.setdefault("예측계산기준", "후보 스캔 시 계산")
         return hydrated
 
@@ -934,7 +937,7 @@ def show_detail(row):
         st.query_params["view"] = "simple"
         st.rerun()
     st.subheader(f"{row['종목명']} ({row['종목코드']}) 핵심 요약")
-    if row.get("예측상태") != "산출":
+    if row.get("예측상태") != "산출" or not {"갭하락확률%", "보합출발확률%"}.issubset(row):
         with st.spinner("상세 통계를 확장 데이터로 다시 계산 중..."):
             row = ensure_detail_prediction(row)
         st.session_state["scanner_v5_selected"] = row
@@ -986,6 +989,10 @@ def show_detail(row):
     c3.metric(f"{horizon}일 내 +3%", probability(reach_key))
     c4.metric("초기 손절 도달", probability("초기손절도달확률%"))
 
+    c1, c2 = st.columns(2)
+    c1.metric("갭하락 확률", probability("갭하락확률%"))
+    c2.metric("보합출발 확률", probability("보합출발확률%"))
+
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("예상 시가 범위", price_range("예상시가하단%", "예상시가상단%"))
     c2.metric("예상 종가 범위", price_range("예상종가하단%", "예상종가상단%"))
@@ -1036,7 +1043,7 @@ def show_detail(row):
 
     with st.expander("자세히 보기 — 탈락사유·전체 지표·차트·일별 수급"):
         st.write(f"**판정:** {row['판정']}  |  **탈락사유:** {row['탈락사유']}")
-        details = {k: row.get(k) for k in ["종목점수", "시장환경", "업종환경", "최종순위점수", "업종분류", "유형", "RSI14", "거래량배수", "종가위치%", "윗꼬리%", "시장대비강도%p", "OBV", "CVD Proxy", "표본수", "신뢰도", "유사도중앙거리", "익일승률%", "갭상승확률%", "예상시가하단%", "예상시가상단%", "예상종가하단%", "예상종가상단%", "예상고가%", "예상저가%", reach_key, "초기손절도달확률%", "평균MAE%", "손절률%", "1차손익비R", "2차손익비R"]}
+        details = {k: row.get(k) for k in ["종목점수", "시장환경", "업종환경", "최종순위점수", "업종분류", "유형", "RSI14", "거래량배수", "종가위치%", "윗꼬리%", "시장대비강도%p", "OBV", "CVD Proxy", "표본수", "신뢰도", "유사도중앙거리", "익일승률%", "갭상승확률%", "갭하락확률%", "보합출발확률%", "예상시가하단%", "예상시가상단%", "예상종가하단%", "예상종가상단%", "예상고가%", "예상저가%", reach_key, "초기손절도달확률%", "평균MAE%", "손절률%", "1차손익비R", "2차손익비R"]}
         st.dataframe(pd.DataFrame([details]), use_container_width=True, hide_index=True)
         if summary:
             st.markdown("#### 외국인·기관 수급 및 공매도")
@@ -1091,6 +1098,10 @@ def prediction_context(price_date, forecast_mode="auto"):
 
 def show_simple_prediction(row):
     """Mobile-first result used immediately after direct stock lookup."""
+    if row.get("예측상태") != "산출" or not {"갭하락확률%", "보합출발확률%"}.issubset(row):
+        with st.spinner("갭 방향 통계를 계산 중..."):
+            row = ensure_detail_prediction(row)
+        st.session_state["scanner_v5_selected"] = row
     context = prediction_context(row["날짜"], row.get("예측모드", "auto"))
     st.markdown(f"#### {row['종목명']} ({row['종목코드']})")
     st.info(
@@ -1231,7 +1242,7 @@ def show_simple_prediction(row):
         <div style="margin:.1rem 0 .8rem; color:#697386;
                     font-size:clamp(.72rem,2.4vw,.82rem); line-height:1.5;">
           {rise_basis_text}<br>
-          나머지 수치는 현재 조건과 비슷한 과거 유사신호에서 갭상승·목표가 또는 손절선 도달이
+          나머지 수치는 현재 조건과 비슷한 과거 유사신호에서 갭상승·갭하락·보합출발·목표가 또는 손절선 도달이
           실제로 발생한 비율입니다.<br>
           <span style="color:#a94a4a;">※ 과거 통계에 기반한 참고자료이며 실제 미래 확률이나 수익을
           보장하지 않습니다. 시장 상황에 따라 결과가 달라질 수 있습니다.</span>
@@ -1244,6 +1255,10 @@ def show_simple_prediction(row):
     c2.metric("갭상승확률", probability("갭상승확률%"))
     c3.metric(f"{horizon}일 내 +3%", probability(reach_key))
     c4.metric("손절선 도달확률", probability("초기손절도달확률%"))
+    c1, c2 = st.columns(2)
+    c1.metric("갭하락확률", probability("갭하락확률%"))
+    c2.metric("보합출발확률", probability("보합출발확률%"))
+    st.caption("갭상승·갭하락·보합출발은 다음 거래일 시가를 기준일 종가와 비교해 각각 계산합니다.")
 
     with st.spinner("매집 흔적과 수급 확인 중..."):
         accumulation_summary, _, _ = flow_and_short(row["종목코드"])
