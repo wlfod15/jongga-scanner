@@ -68,7 +68,7 @@ html, body, [data-testid="stAppViewContainer"] { background: #f6f8fb; }
 """, unsafe_allow_html=True)
 SCAN_SETTING_DEFAULTS = {
     "market_filter": "전체",
-    "max_symbols": 300,
+    "max_symbols": 50,
     "min_value": 30,
     "min_price": 2000,
     "min_vr": 1.5,
@@ -99,6 +99,14 @@ def sync_scan_setting(source_key, setting_name, peer_key):
     st.session_state[peer_key] = value
 
 
+def reset_scan_settings():
+    for setting_name, default_value in SCAN_SETTING_DEFAULTS.items():
+        st.session_state[f"scanner_v5_setting_{setting_name}"] = default_value
+        st.session_state[f"sidebar_{setting_name}"] = default_value
+        st.session_state[f"mobile_{setting_name}"] = default_value
+    st.session_state["scanner_v5_settings_reset_notice"] = True
+
+
 def setting_widget(prefix, setting_name, widget, *args, **kwargs):
     widget_key = f"{prefix}_{setting_name}"
     peer_prefix = "mobile" if prefix == "sidebar" else "sidebar"
@@ -112,7 +120,7 @@ def setting_widget(prefix, setting_name, widget, *args, **kwargs):
 
 def render_scan_settings(prefix):
     setting_widget(prefix, "market_filter", st.selectbox, "시장", ["전체", "KOSPI", "KOSDAQ"])
-    setting_widget(prefix, "max_symbols", st.select_slider, "스캔 종목 수", options=[100, 200, 300, 500, 800, 1200])
+    setting_widget(prefix, "max_symbols", st.select_slider, "스캔 종목 수", options=[50, 100, 200, 300, 500, 800, 1200])
     setting_widget(prefix, "min_value", st.number_input, "20일 평균 거래대금 최소(억원)", min_value=1, step=10)
     setting_widget(prefix, "min_price", st.number_input, "최소 주가(원)", min_value=100, step=500)
     setting_widget(prefix, "min_vr", st.slider, "거래량 최소 배수", min_value=.5, max_value=5., step=.1)
@@ -134,6 +142,13 @@ def render_scan_settings(prefix):
          "+50%선 돌파 종목", "다음 목표가까지 상승여력 10% 이상",
          "거래량 증가 + 반등선 돌파", "거래량 증가 + 33%선 돌파"],
     )
+    st.button(
+        "↺ 필터 기본값으로 초기화",
+        key=f"{prefix}_reset_scan_settings",
+        use_container_width=True,
+        on_click=reset_scan_settings,
+    )
+    st.caption("잘못 변경한 경우 시장·지표·조회 조건을 처음 설정으로 되돌립니다.")
 
 
 st.title("KRX 종가매매 종목 스캐너 v5")
@@ -1379,7 +1394,10 @@ if "scanner_v5_validation" in st.session_state and search_mode == "과거 날짜
         st.caption(f"기준일 {validation['기준일']} → 실제 거래일 {validation['실제일']} · 예상가는 당시 데이터만 사용한 유사표본 가중 중심값입니다.")
 
 st.markdown("### 매수 후보를 찾고 싶다면")
-st.caption("전체 시장에서 조건에 맞는 후보를 찾아보세요.")
+st.caption(
+    f"빠른 검색을 위해 기본 {max_symbols}개 종목만 분석합니다. 더 많은 종목을 검색하려면 "
+    "위의 ‘⚙️ 상세 조건 설정하기’에서 스캔 종목 수를 변경하세요."
+)
 scan_clicked = st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_container_width=True)
 accumulation_scan_clicked = st.button("매집 흔적 있는 종목만 보기", type="primary", use_container_width=True)
 scan_status = st.empty()
