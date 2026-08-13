@@ -436,6 +436,54 @@ def trade_levels(df):
 
 PREDICTION_FEATURES = ["RSI", "CLOSE_POS", "UPPER_WICK", "VOL_RATIO", "MA20_GAP",
                        "ATR_PCT", "OBV_SLOPE", "CVDP_SLOPE", "RET1", "MKT_RET1", "MKT_RET5"]
+MACRO_TICKERS = {
+    "NQ": "NQ=F", "SOX": "^SOX", "VIX": "^VIX", "FX": "KRW=X",
+    "TNX": "^TNX", "WTI": "CL=F",
+}
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def macro_prediction_history(start):
+    """Build lagged global-market features that were knowable before the KRX close."""
+    if not YF_OK:
+        return pd.DataFrame()
+    series = {}
+    for prefix, ticker in MACRO_TICKERS.items():
+        try:
+            raw = yf.download(ticker, start=start, interval="1d", progress=False,
+                              auto_adjust=False, threads=False)
+            close = pd.to_numeric(extract_close(raw, ticker), errors="coerce").dropna()
+            if close.empty:
+                continue
+            close.index = pd.to_datetime(close.index).tz_localize(None).normalize()
+            # Same-calendar-day US closes are not known at the Korean close.
+            known = close.shift(1)
+            series[f"{prefix}_RET1"] = known.pct_change() * 100
+            if prefix in {"NQ", "SOX", "FX"}:
+                series[f"{prefix}_RET5"] = known.pct_change(5) * 100
+            if prefix == "VIX":
+                series["VIX_LEVEL"] = known
+        except Exception:
+            continue
+    return pd.DataFrame(series).sort_index() if series else pd.DataFrame()
+
+
+def current_macro_features(market_data):
+    """Map the latest observable market snapshot to the model's macro columns."""
+    mapping = {
+        "NQ": "나스닥100 선물", "SOX": "SOX", "VIX": "VIX",
+        "FX": "원/달러", "TNX": "미국10년물", "WTI": "WTI",
+    }
+    values = {}
+    for prefix, label in mapping.items():
+        item = market_data.get(label, {})
+        if pd.notna(item.get("전일대비", np.nan)):
+            values[f"{prefix}_RET1"] = float(item["전일대비"])
+        if prefix in {"NQ", "SOX", "FX"} and pd.notna(item.get("5일 누적", np.nan)):
+            values[f"{prefix}_RET5"] = float(item["5일 누적"])
+        if prefix == "VIX" and pd.notna(item.get("현재", np.nan)):
+            values["VIX_LEVEL"] = float(item["현재"])
+    return values
 
 
 def _weighted_rate(values, weights, condition):
@@ -443,24 +491,42 @@ def _weighted_rate(values, weights, condition):
     return float(np.average(mask.astype(float), weights=weights) * 100)
 
 
-def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0):
+def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0,
+                       macro_history=None, macro_current=None):
     """Use only information known at each signal date; future rows are labels only."""
     base = df.copy()
     aligned = market_ret.reindex(base.index).fillna(0)
     base["MKT_RET1"] = aligned
     base["MKT_RET5"] = aligned.rolling(5).sum()
+    macro_features = []
+    if macro_history is not None and not macro_history.empty:
+        macro = macro_history.copy()
+        macro.index = pd.to_datetime(macro.index).tz_localize(None).normalize()
+        base_dates = pd.to_datetime(base.index).tz_localize(None).normalize()
+        aligned_macro = macro.reindex(base_dates, method="ffill")
+        aligned_macro.index = base.index
+        for column in aligned_macro.columns:
+            values = pd.to_numeric(aligned_macro[column], errors="coerce")
+            if values.notna().mean() >= .70 and pd.notna(values.iloc[-1]):
+                base[column] = values
+                macro_features.append(column)
+        if macro_current:
+            for column in macro_features:
+                if column in macro_current and pd.notna(macro_current[column]):
+                    base.loc[base.index[-1], column] = float(macro_current[column])
+    prediction_features = PREDICTION_FEATURES + macro_features
     current = base.iloc[-1]
-    candidates = base.iloc[65:-(horizon + 1)].dropna(subset=PREDICTION_FEATURES).copy()
-    if current[PREDICTION_FEATURES].isna().any() or len(candidates) < min_samples:
+    candidates = base.iloc[65:-(horizon + 1)].dropna(subset=prediction_features).copy()
+    if current[prediction_features].isna().any() or len(candidates) < min_samples:
         return {"표본수": len(candidates), "예측상태": "표본 부족", "신뢰도": "표본 부족"}
 
     # Scale using the historical candidate pool only. The latest observation never
     # changes historical feature values, preventing look-ahead leakage.
-    hist = candidates[PREDICTION_FEATURES].astype(float)
+    hist = candidates[prediction_features].astype(float)
     center = hist.median()
     scale = (hist.quantile(.75) - hist.quantile(.25)).replace(0, np.nan)
     scale = scale.fillna(hist.std()).replace(0, 1).fillna(1)
-    distance = (((hist - current[PREDICTION_FEATURES].astype(float)) / scale) ** 2).mean(axis=1) ** .5
+    distance = (((hist - current[prediction_features].astype(float)) / scale) ** 2).mean(axis=1) ** .5
     take = min(max(min_samples, int(len(distance) * .15)), 80)
     chosen = distance.nsmallest(take)
     if len(chosen) < min_samples:
@@ -493,6 +559,7 @@ def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0):
     confidence = "높음" if len(out) >= 60 and out["distance"].median() <= 1.0 else "보통" if len(out) >= 35 else "낮음"
     return {
         "표본수": len(out), "예측상태": "산출", "신뢰도": confidence,
+        "거시지표반영": ", ".join(macro_features) if macro_features else "국내시장만 반영",
         "유사도중앙거리": round(float(out["distance"].median()), 2),
         "익일승률%": round(_weighted_rate(out["close"], weights, lambda x: x > 0), 1),
         "갭상승확률%": round(_weighted_rate(out["open"], weights, lambda x: x > 0), 1),
@@ -548,8 +615,10 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
         f = row_features(df, mr, -1, p)
         cat, sector_score = sector_environment(name, sector_text, market_score, market_data)
         levels = trade_levels(df)
+        macro_history = macro_prediction_history(start)
         bt = similar_prediction(df, mr, p["prediction_horizon"], p["min_prediction_samples"],
-                                levels["손절률%"] if do_bt else 3.0) if do_bt else {
+                                levels["손절률%"] if do_bt else 3.0, macro_history,
+                                current_macro_features(market_data)) if do_bt else {
                                     "표본수": 0, "예측상태": "사용 안 함", "신뢰도": "-"}
         combined = round(.60 * f["score"] + .25 * market_score + .15 * sector_score, 1)
         decision = "매수후보" if f["hard"] and f["score"] >= p["min_score"] else "조건근접" if f["score"] >= p["min_score"] - 20 or len(f["failures"]) <= 3 else "제외"
@@ -597,7 +666,8 @@ def validate_at_date(symbol, selected_date, market, p, lookback_days):
     market_history = benchmark(market, start).reindex(history.index)
     stop_pct = trade_levels(history)["손절률%"]
     prediction = similar_prediction(history, market_history, p["prediction_horizon"],
-                                    p["min_prediction_samples"], stop_pct)
+                                    p["min_prediction_samples"], stop_pct,
+                                    macro_prediction_history(start))
     actual_date = full.index[base_pos + 1]
     actual_open = float(full["Open"].iloc[base_pos + 1])
     actual_close = float(full["Close"].iloc[base_pos + 1])
@@ -895,7 +965,9 @@ def detail_prediction_snapshot(symbol, market, price_date, horizon, min_samples,
             return {"표본수": 0, "예측상태": "가격 데이터 부족", "신뢰도": "산출 불가"}
 
         market_history = benchmark(market, start).reindex(history.index)
-        result = similar_prediction(history, market_history, horizon, min_samples, stop_pct)
+        result = similar_prediction(history, market_history, horizon, min_samples, stop_pct,
+                                    macro_prediction_history(start),
+                                    current_macro_features(market_data))
         result["예측계산기준"] = f"상세보기 확장 재계산 · 최근 약 {extended_days // 365}년"
         return result
     except Exception as exc:
@@ -910,7 +982,7 @@ def detail_prediction_snapshot(symbol, market, price_date, horizon, min_samples,
 def ensure_detail_prediction(row):
     """Hydrate detail statistics even when scan-time backtesting was disabled/insufficient."""
     hydrated = dict(row)
-    required_gap_keys = {"갭상승확률%", "갭하락확률%", "보합출발확률%"}
+    required_gap_keys = {"갭상승확률%", "갭하락확률%", "보합출발확률%", "거시지표반영"}
     if hydrated.get("예측상태") == "산출" and required_gap_keys.issubset(hydrated):
         hydrated.setdefault("예측계산기준", "후보 스캔 시 계산")
         return hydrated
@@ -937,7 +1009,7 @@ def show_detail(row):
         st.query_params["view"] = "simple"
         st.rerun()
     st.subheader(f"{row['종목명']} ({row['종목코드']}) 핵심 요약")
-    if row.get("예측상태") != "산출" or not {"갭하락확률%", "보합출발확률%"}.issubset(row):
+    if row.get("예측상태") != "산출" or not {"갭하락확률%", "보합출발확률%", "거시지표반영"}.issubset(row):
         with st.spinner("상세 통계를 확장 데이터로 다시 계산 중..."):
             row = ensure_detail_prediction(row)
         st.session_state["scanner_v5_selected"] = row
@@ -983,6 +1055,7 @@ def show_detail(row):
     detail_context = prediction_context(row["날짜"], row.get("예측모드", "auto"))
     st.markdown(f"#### {detail_context['구분']} 통계")
     st.caption(row.get("예측계산기준", "후보 스캔 시 계산"))
+    st.caption(f"예측 변수: {row.get('거시지표반영', '국내시장만 반영')}")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(f"{detail_context['확률접두어']} 상승 확률", probability("익일승률%"))
     c2.metric("갭상승 확률", probability("갭상승확률%"))
@@ -1098,7 +1171,7 @@ def prediction_context(price_date, forecast_mode="auto"):
 
 def show_simple_prediction(row):
     """Mobile-first result used immediately after direct stock lookup."""
-    if row.get("예측상태") != "산출" or not {"갭하락확률%", "보합출발확률%"}.issubset(row):
+    if row.get("예측상태") != "산출" or not {"갭하락확률%", "보합출발확률%", "거시지표반영"}.issubset(row):
         with st.spinner("갭 방향 통계를 계산 중..."):
             row = ensure_detail_prediction(row)
         st.session_state["scanner_v5_selected"] = row
@@ -1259,6 +1332,15 @@ def show_simple_prediction(row):
     c1.metric("갭하락확률", probability("갭하락확률%"))
     c2.metric("보합출발확률", probability("보합출발확률%"))
     st.caption("갭상승·갭하락·보합출발은 다음 거래일 시가를 기준일 종가와 비교해 각각 계산합니다.")
+    st.caption(f"예측 변수: {row.get('거시지표반영', '국내시장만 반영')}")
+    night_quote = current_kospi200_night()
+    if night_quote:
+        st.info(
+            f"코스피200 야간선물 {night_quote.get('변동률%', 0):+.2f}% · "
+            f"거래량 {night_quote.get('거래량', 0):,} · 현재 야간 참고신호"
+        )
+    else:
+        st.caption("코스피200 야간선물은 야간장·개장 전 수신 가능 시간에 별도 참고신호로 표시됩니다.")
 
     with st.spinner("매집 흔적과 수급 확인 중..."):
         accumulation_summary, _, _ = flow_and_short(row["종목코드"])
