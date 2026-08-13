@@ -998,11 +998,6 @@ with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True)
             placeholder="여기에 원하는 종목명을 입력하세요",
             help="PC에서는 종목명을 입력한 뒤 Enter를 눌러도 바로 검색됩니다.",
         )
-        accumulation_only = st.checkbox(
-            "매집 흔적 있는 종목만 보기 (50점 이상)",
-            value=False,
-            help="거래량·OBV·CVD Proxy·종가위치·윗꼬리·시장대비강도·외국인 수급·공매도 정황을 합산합니다.",
-        )
     with button_col:
         st.write("")
         move_clicked = st.form_submit_button(
@@ -1043,16 +1038,9 @@ if move_clicked and len(matches):
                 "매집 근거": accumulation["근거"],
                 "매집 위험": accumulation["위험"],
             })
-            if accumulation_only and accumulation["점수"] < 50:
-                st.session_state.pop("scanner_v5_selected", None)
-                st.warning(
-                    f"{result['종목명']}의 매집 흔적 점수는 {accumulation['점수']}/100으로 "
-                    f"선택한 50점 기준에 미달합니다. 위험 신호: {accumulation['위험']}"
-                )
-            else:
-                st.session_state["scanner_v5_selected"] = result
-                st.session_state["scanner_v5_selected_mode"] = "simple"
-                st.query_params["view"] = "simple"
+            st.session_state["scanner_v5_selected"] = result
+            st.session_state["scanner_v5_selected_mode"] = "simple"
+            st.query_params["view"] = "simple"
         else: st.error("분석에 필요한 가격 데이터가 부족합니다.")
 elif move_clicked and query:
     st.warning("일치하는 KRX 종목이 없습니다.")
