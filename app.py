@@ -296,7 +296,7 @@ def prep(df):
     return x
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def yahoo_metric(ticker):
     if not YF_OK:
         return {"현재": np.nan, "전일대비": np.nan, "5일 누적": np.nan}
@@ -324,6 +324,7 @@ def market_environment():
         "VIX": yahoo_metric("^VIX"), "원/달러": yahoo_metric("KRW=X"),
         "나스닥100 선물": yahoo_metric("NQ=F"), "미국10년물": yahoo_metric("^TNX"),
         "WTI": yahoo_metric("CL=F"), "SOX": yahoo_metric("^SOX"),
+        "EWY": yahoo_metric("EWY"), "KORU": yahoo_metric("KORU"),
         "KOSPI": index_metric("KS11"), "KOSDAQ": index_metric("KQ11"),
     }
     score, label, reasons = legacy_market_score(data)
@@ -438,7 +439,7 @@ PREDICTION_FEATURES = ["RSI", "CLOSE_POS", "UPPER_WICK", "VOL_RATIO", "MA20_GAP"
                        "ATR_PCT", "OBV_SLOPE", "CVDP_SLOPE", "RET1", "MKT_RET1", "MKT_RET5"]
 MACRO_TICKERS = {
     "NQ": "NQ=F", "SOX": "^SOX", "VIX": "^VIX", "FX": "KRW=X",
-    "TNX": "^TNX", "WTI": "CL=F",
+    "TNX": "^TNX", "WTI": "CL=F", "EWY": "EWY", "KORU": "KORU",
 }
 
 
@@ -458,8 +459,11 @@ def macro_prediction_history(start):
             close.index = pd.to_datetime(close.index).tz_localize(None).normalize()
             # Same-calendar-day US closes are not known at the Korean close.
             known = close.shift(1)
-            series[f"{prefix}_RET1"] = known.pct_change() * 100
-            if prefix in {"NQ", "SOX", "FX"}:
+            ret1 = known.pct_change() * 100
+            # KORU is leveraged; normalize it to an approximate 1x move so it
+            # contributes as a secondary Korea-risk signal rather than dominating.
+            series[f"{prefix}_RET1"] = ret1 / 3 if prefix == "KORU" else ret1
+            if prefix in {"NQ", "SOX", "FX", "EWY"}:
                 series[f"{prefix}_RET5"] = known.pct_change(5) * 100
             if prefix == "VIX":
                 series["VIX_LEVEL"] = known
@@ -473,13 +477,15 @@ def current_macro_features(market_data):
     mapping = {
         "NQ": "나스닥100 선물", "SOX": "SOX", "VIX": "VIX",
         "FX": "원/달러", "TNX": "미국10년물", "WTI": "WTI",
+        "EWY": "EWY", "KORU": "KORU",
     }
     values = {}
     for prefix, label in mapping.items():
         item = market_data.get(label, {})
         if pd.notna(item.get("전일대비", np.nan)):
-            values[f"{prefix}_RET1"] = float(item["전일대비"])
-        if prefix in {"NQ", "SOX", "FX"} and pd.notna(item.get("5일 누적", np.nan)):
+            current_ret = float(item["전일대비"])
+            values[f"{prefix}_RET1"] = current_ret / 3 if prefix == "KORU" else current_ret
+        if prefix in {"NQ", "SOX", "FX", "EWY"} and pd.notna(item.get("5일 누적", np.nan)):
             values[f"{prefix}_RET5"] = float(item["5일 누적"])
         if prefix == "VIX" and pd.notna(item.get("현재", np.nan)):
             values["VIX_LEVEL"] = float(item["현재"])
@@ -581,7 +587,32 @@ def similar_prediction(df, market_ret, horizon=5, min_samples=20, stop_pct=3.0,
     }
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+LIVE_FORECAST_KEYS = (
+    "익일승률%", "익일하락확률%", "익일보합확률%",
+    "갭상승확률%", "갭하락확률%", "보합출발확률%",
+    "예상시가하단%", "예상시가상단%", "예상종가하단%", "예상종가상단%",
+    "예상고가%", "예상저가%", "예상시가평균%", "익일평균%",
+)
+
+
+def merge_close_and_live_forecasts(close_forecast, live_forecast, checked_at=None):
+    """Keep the close snapshot while exposing a separately labelled live nowcast."""
+    if live_forecast.get("예측상태") != "산출":
+        result = dict(close_forecast)
+        result["실시간보정상태"] = live_forecast.get("예측상태", "산출 불가")
+        return result
+    result = dict(live_forecast)
+    if close_forecast.get("예측상태") == "산출":
+        for key in LIVE_FORECAST_KEYS:
+            if key in close_forecast:
+                result[f"장마감_{key}"] = close_forecast[key]
+    result["실시간보정상태"] = "산출"
+    result["실시간보정시각"] = checked_at or datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M")
+    result["실시간참고지표"] = "나스닥100 선물 · EWY · KORU(1/3 정규화) · SOX · VIX · 원/달러 · 미국10년물 · WTI"
+    return result
+
+
+@st.cache_data(ttl=300, show_spinner=False)
 def kospi_next_session_prediction(lookback_days, min_samples, macro_current):
     start = (date.today() - timedelta(days=max(int(lookback_days) * 3, 1095))).isoformat()
     try:
@@ -590,10 +621,16 @@ def kospi_next_session_prediction(lookback_days, min_samples, macro_current):
         if len(frame) < 100:
             return {"예측상태": "가격 데이터 부족", "표본수": 0}
         kospi_return = frame["Close"].pct_change() * 100
-        result = similar_prediction(
+        history_macro = macro_prediction_history(start)
+        close_result = similar_prediction(
             frame, kospi_return, horizon=1, min_samples=int(min_samples), stop_pct=2.0,
-            macro_history=macro_prediction_history(start), macro_current=dict(macro_current),
+            macro_history=history_macro,
         )
+        live_result = similar_prediction(
+            frame, kospi_return, horizon=1, min_samples=int(min_samples), stop_pct=2.0,
+            macro_history=history_macro, macro_current=dict(macro_current),
+        )
+        result = merge_close_and_live_forecasts(close_result, live_result)
         result["기준지수"] = float(frame["Close"].iloc[-1])
         result["기준일"] = pd.Timestamp(frame.index[-1]).strftime("%Y-%m-%d")
         return result
@@ -629,6 +666,12 @@ def render_kospi_next_prediction(market_data, lookback_days, min_samples):
             return "데이터 없음"
         return f"{float(low):+.2f}% ~ {float(high):+.2f}%"
 
+    def close_percent_range(low_key, high_key):
+        low, high = result.get(f"장마감_{low_key}", np.nan), result.get(f"장마감_{high_key}", np.nan)
+        if pd.isna(low) or pd.isna(high):
+            return "데이터 없음"
+        return f"{float(low):+.2f}% ~ {float(high):+.2f}%"
+
     c1, c2, c3 = st.columns(3)
     c1.metric("익일 상승확률", probability("익일승률%"))
     c2.metric("익일 하락확률", probability("익일하락확률%"))
@@ -638,14 +681,21 @@ def render_kospi_next_prediction(market_data, lookback_days, min_samples):
     c2.metric("갭하락확률", probability("갭하락확률%"))
     c3.metric("보합출발확률", probability("보합출발확률%"))
     c1, c2 = st.columns(2)
-    c1.metric("예상 시가 등락 범위", percent_range("예상시가하단%", "예상시가상단%"))
-    c2.metric("예상 종가 등락 범위", percent_range("예상종가하단%", "예상종가상단%"))
+    c1.metric("장 마감 기준 시가 범위", close_percent_range("예상시가하단%", "예상시가상단%"))
+    c2.metric("장 마감 기준 종가 범위", close_percent_range("예상종가하단%", "예상종가상단%"))
+    c1, c2 = st.columns(2)
+    c1.metric("실시간 보정 시가 범위", percent_range("예상시가하단%", "예상시가상단%"))
+    c2.metric("실시간 보정 종가 범위", percent_range("예상종가하단%", "예상종가상단%"))
 
     st.caption(
         f"기준일 {result.get('기준일', '-')} · 코스피 {result.get('기준지수', np.nan):,.2f} · "
         f"유사표본 {int(result.get('표본수', 0))}회 · 신뢰도 {result.get('신뢰도', '-')}"
     )
     st.caption(f"반영 변수: {result.get('거시지표반영', '국내시장만 반영')}")
+    st.caption(
+        f"실시간 보정 기준 {result.get('실시간보정시각', '-')} · "
+        f"{result.get('실시간참고지표', '-')}. 새로고침 시 최신 지표로 다시 계산됩니다."
+    )
     night_quote = current_kospi200_night()
     if night_quote:
         st.info(
@@ -693,10 +743,18 @@ def analyze(symbol, name, market, sector_text, start, p, do_bt, market_score, ma
         cat, sector_score = sector_environment(name, sector_text, market_score, market_data)
         levels = trade_levels(df)
         macro_history = macro_prediction_history(start)
-        bt = similar_prediction(df, mr, p["prediction_horizon"], p["min_prediction_samples"],
-                                levels["손절률%"] if do_bt else 3.0, macro_history,
-                                current_macro_features(market_data)) if do_bt else {
-                                    "표본수": 0, "예측상태": "사용 안 함", "신뢰도": "-"}
+        if do_bt:
+            close_bt = similar_prediction(
+                df, mr, p["prediction_horizon"], p["min_prediction_samples"],
+                levels["손절률%"], macro_history,
+            )
+            live_bt = similar_prediction(
+                df, mr, p["prediction_horizon"], p["min_prediction_samples"],
+                levels["손절률%"], macro_history, current_macro_features(market_data),
+            )
+            bt = merge_close_and_live_forecasts(close_bt, live_bt, now.strftime("%Y-%m-%d %H:%M"))
+        else:
+            bt = {"표본수": 0, "예측상태": "사용 안 함", "신뢰도": "-"}
         combined = round(.60 * f["score"] + .25 * market_score + .15 * sector_score, 1)
         decision = "매수후보" if f["hard"] and f["score"] >= p["min_score"] else "조건근접" if f["score"] >= p["min_score"] - 20 or len(f["failures"]) <= 3 else "제외"
         r = df.iloc[-1]
@@ -1022,7 +1080,7 @@ def show_accumulation(row, summary):
         st.info(f"근거: {result['근거']}")
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def detail_prediction_snapshot(symbol, market, price_date, horizon, min_samples, stop_pct, lookback_days):
     """Recalculate missing scan statistics with a longer history for detail view."""
     symbol = str(symbol).zfill(6)
@@ -1042,9 +1100,15 @@ def detail_prediction_snapshot(symbol, market, price_date, horizon, min_samples,
             return {"표본수": 0, "예측상태": "가격 데이터 부족", "신뢰도": "산출 불가"}
 
         market_history = benchmark(market, start).reindex(history.index)
-        result = similar_prediction(history, market_history, horizon, min_samples, stop_pct,
-                                    macro_prediction_history(start),
-                                    current_macro_features(market_data))
+        macro_history = macro_prediction_history(start)
+        close_result = similar_prediction(
+            history, market_history, horizon, min_samples, stop_pct, macro_history,
+        )
+        live_result = similar_prediction(
+            history, market_history, horizon, min_samples, stop_pct, macro_history,
+            current_macro_features(market_data),
+        )
+        result = merge_close_and_live_forecasts(close_result, live_result)
         result["예측계산기준"] = f"상세보기 확장 재계산 · 최근 약 {extended_days // 365}년"
         return result
     except Exception as exc:
@@ -1059,7 +1123,7 @@ def detail_prediction_snapshot(symbol, market, price_date, horizon, min_samples,
 def ensure_detail_prediction(row):
     """Hydrate detail statistics even when scan-time backtesting was disabled/insufficient."""
     hydrated = dict(row)
-    required_gap_keys = {"갭상승확률%", "갭하락확률%", "보합출발확률%", "거시지표반영"}
+    required_gap_keys = {"갭상승확률%", "갭하락확률%", "보합출발확률%", "거시지표반영", "실시간보정상태"}
     if hydrated.get("예측상태") == "산출" and required_gap_keys.issubset(hydrated):
         hydrated.setdefault("예측계산기준", "후보 스캔 시 계산")
         return hydrated
@@ -1086,7 +1150,7 @@ def show_detail(row):
         st.query_params["view"] = "simple"
         st.rerun()
     st.subheader(f"{row['종목명']} ({row['종목코드']}) 핵심 요약")
-    if row.get("예측상태") != "산출" or not {"갭하락확률%", "보합출발확률%", "거시지표반영"}.issubset(row):
+    if row.get("예측상태") != "산출" or not {"갭하락확률%", "보합출발확률%", "거시지표반영", "실시간보정상태"}.issubset(row):
         with st.spinner("상세 통계를 확장 데이터로 다시 계산 중..."):
             row = ensure_detail_prediction(row)
         st.session_state["scanner_v5_selected"] = row
@@ -1148,6 +1212,19 @@ def show_detail(row):
     c2.metric("예상 종가 범위", price_range("예상종가하단%", "예상종가상단%"))
     c3.metric("예상 고가", unavailable_text if not prediction_ok else f"{pct_price(row['예상고가%']):,.0f}원")
     c4.metric("예상 저가", unavailable_text if not prediction_ok else f"{pct_price(row['예상저가%']):,.0f}원")
+    if "장마감_예상종가하단%" in row:
+        def close_price_range(low_key, high_key):
+            low, high = row.get(f"장마감_{low_key}", np.nan), row.get(f"장마감_{high_key}", np.nan)
+            if pd.isna(low) or pd.isna(high):
+                return "데이터 없음"
+            return f"{pct_price(low):,.0f}~{pct_price(high):,.0f}원"
+        c1, c2 = st.columns(2)
+        c1.metric("장 마감 기준 예상 시가", close_price_range("예상시가하단%", "예상시가상단%"))
+        c2.metric("장 마감 기준 예상 종가", close_price_range("예상종가하단%", "예상종가상단%"))
+        st.caption(
+            f"위 예상 시가·종가 범위는 {row.get('실시간보정시각', '-')} 기준 실시간 보정값입니다. "
+            "장 마감 기준값과 분리해 비교합니다."
+        )
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("유사 표본", f"{sample_n}회" if sample_n else unavailable_text)
@@ -1292,6 +1369,15 @@ def show_simple_prediction(row):
             return "표본 부족"
         return f"{min(low, high):,.0f} ~ {max(low, high):,.0f}원"
 
+    def close_range_text(low_key, high_key):
+        low_value = row.get(f"장마감_{low_key}", np.nan)
+        high_value = row.get(f"장마감_{high_key}", np.nan)
+        if pd.isna(low_value) or pd.isna(high_value):
+            return "데이터 없음"
+        low = entry * (1 + float(low_value) / 100)
+        high = entry * (1 + float(high_value) / 100)
+        return f"{min(low, high):,.0f} ~ {max(low, high):,.0f}원"
+
     def single_text(key):
         value = pct_price(key)
         return "표본 부족" if value is None else f"{value:,.0f}원"
@@ -1300,12 +1386,21 @@ def show_simple_prediction(row):
         value = row.get(key, np.nan)
         return "표본 부족" if not prediction_ok or pd.isna(value) else f"{float(value):.0f}%"
 
-    forecast_cards = [
-        ("예상 시가 범위", range_text("예상시가하단%", "예상시가상단%")),
-        ("예상 종가 범위", range_text("예상종가하단%", "예상종가상단%")),
-        ("예상 고가", single_text("예상고가%")),
-        ("예상 저가", single_text("예상저가%")),
-    ]
+    has_live_comparison = row.get("실시간보정상태") == "산출" and "장마감_예상종가하단%" in row
+    if has_live_comparison:
+        forecast_cards = [
+            ("장 마감 기준 예상 시가", close_range_text("예상시가하단%", "예상시가상단%")),
+            ("장 마감 기준 예상 종가", close_range_text("예상종가하단%", "예상종가상단%")),
+            ("실시간 보정 예상 시가", range_text("예상시가하단%", "예상시가상단%")),
+            ("실시간 보정 예상 종가", range_text("예상종가하단%", "예상종가상단%")),
+        ]
+    else:
+        forecast_cards = [
+            ("예상 시가 범위", range_text("예상시가하단%", "예상시가상단%")),
+            ("예상 종가 범위", range_text("예상종가하단%", "예상종가상단%")),
+            ("예상 고가", single_text("예상고가%")),
+            ("예상 저가", single_text("예상저가%")),
+        ]
     st.markdown(f"### {context['제목']}")
     st.markdown(
         """
@@ -1334,6 +1429,11 @@ def show_simple_prediction(row):
         for title, value in forecast_cards
     )
     st.markdown(f'<div class="forecast-stack">{cards}</div>', unsafe_allow_html=True)
+    if has_live_comparison:
+        st.caption(
+            f"실시간 보정 기준 {row.get('실시간보정시각', '-')} · "
+            f"참고지표: {row.get('실시간참고지표', '-')}. 새로고침 시 최신 지표로 다시 계산됩니다."
+        )
     st.caption(
         f"표시된 기준 가격으로부터 {context['대상']} 가격을 추정합니다. 예상 고가·저가는 "
         "확정가격이 아니라 과거 유사신호 분포와 ATR14를 이용한 대표 추정값입니다."
