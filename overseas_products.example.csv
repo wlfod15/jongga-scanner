@@ -1,3 +1,4 @@
-krx_code,ticker,provider,currency,product_type,ratio,verified_1to1,note
-005930,SAMSUNG,example,USD,tokenized,1,false,토큰화 상품은 KRX 보통주와 직접 비교하지 않음
-000660,SKHY,example,USD,adr,1,false,ADR 비율과 권리 구조 검증 전 비교하지 않음
+krx_code,ticker,provider,currency,product_type,ratio,verified_ratio,display_name,source_url,dex,note
+005930,SMSN.IL,yahoo,USD,gdr,25,true,Samsung Electronics GDR (LSE: SMSN),https://www.samsung.com/global/ir/stock-information/listing-Info/,,1 GDR = KRX 보통주 25주
+000660,SKHY,yahoo,USD,adr,0.1,true,SK hynix ADR (Nasdaq: SKHY),https://www.sec.gov/Archives/edgar/data/2120882/000119312526299963/d32785d424b4.htm,,1 ADR = KRX 보통주 0.1주
+
