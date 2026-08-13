@@ -1178,10 +1178,11 @@ def show_detail(row):
     def pct_price(pct):
         return entry * (1 + float(pct) / 100)
 
-    def price_range(low_key, high_key):
-        if not prediction_ok or pd.isna(row.get(low_key, np.nan)) or pd.isna(row.get(high_key, np.nan)):
+    def expected_price(key):
+        value = row.get(key, np.nan)
+        if not prediction_ok or pd.isna(value):
             return unavailable_text
-        return f"{pct_price(row[low_key]):,.0f}~{pct_price(row[high_key]):,.0f}원"
+        return f"{pct_price(value):,.0f}원"
 
     def probability(key):
         value = row.get(key, np.nan)
@@ -1208,22 +1209,13 @@ def show_detail(row):
     c2.metric("보합출발 확률", probability("보합출발확률%"))
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("예상 시가 범위", price_range("예상시가하단%", "예상시가상단%"))
-    c2.metric("예상 종가 범위", price_range("예상종가하단%", "예상종가상단%"))
-    c3.metric("예상 고가", unavailable_text if not prediction_ok else f"{pct_price(row['예상고가%']):,.0f}원")
-    c4.metric("예상 저가", unavailable_text if not prediction_ok else f"{pct_price(row['예상저가%']):,.0f}원")
-    if "장마감_예상종가하단%" in row:
-        def close_price_range(low_key, high_key):
-            low, high = row.get(f"장마감_{low_key}", np.nan), row.get(f"장마감_{high_key}", np.nan)
-            if pd.isna(low) or pd.isna(high):
-                return "데이터 없음"
-            return f"{pct_price(low):,.0f}~{pct_price(high):,.0f}원"
-        c1, c2 = st.columns(2)
-        c1.metric("장 마감 기준 예상 시가", close_price_range("예상시가하단%", "예상시가상단%"))
-        c2.metric("장 마감 기준 예상 종가", close_price_range("예상종가하단%", "예상종가상단%"))
+    c1.metric("예상 시가", expected_price("예상시가평균%"))
+    c2.metric("예상 고가", expected_price("예상고가%"))
+    c3.metric("예상 저가", expected_price("예상저가%"))
+    c4.metric("예상 종가", expected_price("익일평균%"))
+    if row.get("실시간보정상태") == "산출":
         st.caption(
-            f"위 예상 시가·종가 범위는 {row.get('실시간보정시각', '-')} 기준 실시간 보정값입니다. "
-            "장 마감 기준값과 분리해 비교합니다."
+            f"{row.get('실시간보정시각', '-')} 기준 실시간 참고지표를 반영한 단일 예상값입니다."
         )
 
     c1, c2, c3, c4 = st.columns(4)
@@ -1363,21 +1355,6 @@ def show_simple_prediction(row):
             return None
         return entry * (1 + float(value) / 100)
 
-    def range_text(low_key, high_key):
-        low, high = pct_price(low_key), pct_price(high_key)
-        if low is None or high is None:
-            return "표본 부족"
-        return f"{min(low, high):,.0f} ~ {max(low, high):,.0f}원"
-
-    def close_range_text(low_key, high_key):
-        low_value = row.get(f"장마감_{low_key}", np.nan)
-        high_value = row.get(f"장마감_{high_key}", np.nan)
-        if pd.isna(low_value) or pd.isna(high_value):
-            return "데이터 없음"
-        low = entry * (1 + float(low_value) / 100)
-        high = entry * (1 + float(high_value) / 100)
-        return f"{min(low, high):,.0f} ~ {max(low, high):,.0f}원"
-
     def single_text(key):
         value = pct_price(key)
         return "표본 부족" if value is None else f"{value:,.0f}원"
@@ -1386,21 +1363,12 @@ def show_simple_prediction(row):
         value = row.get(key, np.nan)
         return "표본 부족" if not prediction_ok or pd.isna(value) else f"{float(value):.0f}%"
 
-    has_live_comparison = row.get("실시간보정상태") == "산출" and "장마감_예상종가하단%" in row
-    if has_live_comparison:
-        forecast_cards = [
-            ("장 마감 기준 예상 시가", close_range_text("예상시가하단%", "예상시가상단%")),
-            ("장 마감 기준 예상 종가", close_range_text("예상종가하단%", "예상종가상단%")),
-            ("실시간 보정 예상 시가", range_text("예상시가하단%", "예상시가상단%")),
-            ("실시간 보정 예상 종가", range_text("예상종가하단%", "예상종가상단%")),
-        ]
-    else:
-        forecast_cards = [
-            ("예상 시가 범위", range_text("예상시가하단%", "예상시가상단%")),
-            ("예상 종가 범위", range_text("예상종가하단%", "예상종가상단%")),
-            ("예상 고가", single_text("예상고가%")),
-            ("예상 저가", single_text("예상저가%")),
-        ]
+    forecast_cards = [
+        ("예상 시가", single_text("예상시가평균%")),
+        ("예상 고가", single_text("예상고가%")),
+        ("예상 저가", single_text("예상저가%")),
+        ("예상 종가", single_text("익일평균%")),
+    ]
     st.markdown(f"### {context['제목']}")
     st.markdown(
         """
@@ -1961,4 +1929,3 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
