@@ -1188,10 +1188,12 @@ with st.spinner("시장환경 확인 중..."):
     market_score, market_label, market_data, market_reasons = market_environment()
 
 L = listings()
+st.subheader("조회 방식")
 search_mode = st.radio(
-    "조회 방식",
+    "조회 방식 선택",
     ["오늘 종가 예측", "익일 예측", "과거 날짜 검증"],
     horizontal=True,
+    label_visibility="collapsed",
 )
 search_mode_help = {
     "오늘 종가 예측": (
