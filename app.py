@@ -1026,14 +1026,22 @@ if search_mode == "과거 날짜 검증":
         help="선택한 날의 종가까지 알려졌다고 가정해 다음 거래일 종가를 예측합니다.")
 
 st.subheader("직접 종목검색")
-st.caption("종목명이나 종목코드를 입력해 바로 분석해보세요.")
+st.caption("종목명 앞 두 글자 이상을 입력하면 일치하는 종목이 모두 표시됩니다. 예: SK → SK하이닉스, SK스퀘어")
+stock_options = [""]
+if len(L):
+    stock_options += [
+        f"{row['Name']} ({row['Code']})"
+        for _, row in L.sort_values(["Name", "Code"]).iterrows()
+    ]
 with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True):
     search_col, button_col = st.columns([4, 1])
     with search_col:
-        query = st.text_input(
-            "종목명 직접 입력",
-            placeholder="여기에 원하는 종목명을 입력하세요",
-            help="PC에서는 종목명을 입력한 뒤 Enter를 눌러도 바로 검색됩니다.",
+        selected_stock = st.selectbox(
+            "종목명 또는 종목코드 검색",
+            stock_options,
+            index=0,
+            placeholder="두 글자 이상 입력해 종목을 선택하세요",
+            help="검색어와 일치하는 모든 KRX 종목이 목록에 표시됩니다. PC에서는 종목 선택 후 Enter를 눌러도 분석됩니다.",
         )
     with button_col:
         st.write("")
@@ -1047,9 +1055,11 @@ direct_status = st.empty()
 if st.session_state.get("scanner_v5_direct_notice"):
     direct_status.success(st.session_state["scanner_v5_direct_notice"])
 
+query = selected_stock
 matches = pd.DataFrame()
-if query and len(L):
-    matches = L[L["Name"].astype(str).str.contains(query, case=False, na=False, regex=False) | L["Code"].str.contains(query, regex=False)].head(30)
+if selected_stock and len(L):
+    selected_code = selected_stock.rsplit("(", 1)[-1].rstrip(")")
+    matches = L[L["Code"].astype(str) == selected_code].head(1)
 if move_clicked:
     st.session_state["scanner_v5_hide_market"] = True
     st.session_state.pop("scanner_v5_scan_notice", None)
@@ -1057,8 +1067,7 @@ if move_clicked:
     direct_status.info("🔎 종목을 분석하고 있습니다. 완료 후 아래에서 결과를 확인하세요.")
 
 if move_clicked and len(matches):
-    exact = matches[(matches["Name"].astype(str).str.lower() == query.strip().lower()) | (matches["Code"] == query.strip())]
-    r = exact.iloc[0] if len(exact) else matches.iloc[0]
+    r = matches.iloc[0]
     mkt = str(r.get("Market", "KOSPI")); sec = str(r.get("Sector", r.get("Industry", "")))
     if search_mode == "과거 날짜 검증":
         with st.spinner("선택한 날짜 기준으로 검증 중..."):
