@@ -1043,11 +1043,18 @@ with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True)
             use_container_width=True,
         )
 
+direct_status = st.empty()
+if st.session_state.get("scanner_v5_direct_notice"):
+    direct_status.success(st.session_state["scanner_v5_direct_notice"])
+
 matches = pd.DataFrame()
 if query and len(L):
     matches = L[L["Name"].astype(str).str.contains(query, case=False, na=False, regex=False) | L["Code"].str.contains(query, regex=False)].head(30)
 if move_clicked:
     st.session_state["scanner_v5_hide_market"] = True
+    st.session_state.pop("scanner_v5_scan_notice", None)
+    st.session_state["scanner_v5_direct_notice"] = "분석 중입니다. 완료되면 결과를 이 안내 아래에서 확인할 수 있습니다."
+    direct_status.info("🔎 종목을 분석하고 있습니다. 완료 후 아래에서 결과를 확인하세요.")
 
 if move_clicked and len(matches):
     exact = matches[(matches["Name"].astype(str).str.lower() == query.strip().lower()) | (matches["Code"] == query.strip())]
@@ -1057,6 +1064,8 @@ if move_clicked and len(matches):
         with st.spinner("선택한 날짜 기준으로 검증 중..."):
             validation = validate_at_date(r.Code, selected_validation_date, mkt, p, lookback)
         st.session_state["scanner_v5_validation"] = {"종목명": r.Name, "종목코드": r.Code, "결과": validation}
+        st.session_state["scanner_v5_direct_notice"] = "✅ 검증이 완료되었습니다. 결과를 아래에서 확인하세요."
+        direct_status.success(st.session_state["scanner_v5_direct_notice"])
     else:
         if search_mode == "오늘 종가 예측" and not krx_market_is_open():
             st.warning("오늘 종가 예측은 평일 09:00~15:40 장중에만 사용할 수 있습니다. 장외에는 익일 예측을 선택해주세요.")
@@ -1081,10 +1090,15 @@ if move_clicked and len(matches):
             })
             st.session_state["scanner_v5_selected"] = result
             st.session_state["scanner_v5_selected_mode"] = "simple"
+            st.session_state["scanner_v5_direct_notice"] = "✅ 분석이 완료되었습니다. 결과를 아래에서 확인하세요."
+            direct_status.success(st.session_state["scanner_v5_direct_notice"])
             st.query_params["view"] = "simple"
-        else: st.error("분석에 필요한 가격 데이터가 부족합니다.")
+        else:
+            st.session_state["scanner_v5_direct_notice"] = "분석에 필요한 가격 데이터가 부족합니다."
+            direct_status.warning(st.session_state["scanner_v5_direct_notice"])
 elif move_clicked and query:
-    st.warning("일치하는 KRX 종목이 없습니다.")
+    st.session_state["scanner_v5_direct_notice"] = "일치하는 KRX 종목이 없습니다."
+    direct_status.warning(st.session_state["scanner_v5_direct_notice"])
 
 if "scanner_v5_validation" in st.session_state and search_mode == "과거 날짜 검증":
     validation_item = st.session_state["scanner_v5_validation"]
@@ -1115,9 +1129,16 @@ st.markdown("### 종목을 모르겠다면")
 st.caption("전체 시장에서 조건에 맞는 후보를 찾아보세요.")
 scan_clicked = st.button("오늘 종가 매매 후보 찾아보기", type="primary", use_container_width=True)
 accumulation_scan_clicked = st.button("매집 흔적 있는 종목만 보기", type="primary", use_container_width=True)
+scan_status = st.empty()
+if st.session_state.get("scanner_v5_scan_notice"):
+    scan_status.success(st.session_state["scanner_v5_scan_notice"])
 
 if scan_clicked or accumulation_scan_clicked:
     st.session_state["scanner_v5_hide_market"] = True
+    st.session_state.pop("scanner_v5_direct_notice", None)
+    scan_name = "매집 흔적 종목" if accumulation_scan_clicked else "종가 매매 후보"
+    st.session_state["scanner_v5_scan_notice"] = f"{scan_name}을(를) 분석 중입니다."
+    scan_status.info(f"🔎 {scan_name}을(를) 찾고 있습니다. 완료 후 아래에서 결과를 확인하세요.")
     scan = L.copy()
     if market_filter != "전체" and "Market" in scan.columns: scan = scan[scan["Market"].astype(str).str.upper().str.startswith(market_filter)]
     cap = next((c for c in ("Marcap", "MarketCap") if c in scan.columns), None)
@@ -1167,10 +1188,14 @@ if scan_clicked or accumulation_scan_clicked:
         R = pd.DataFrame(rows).sort_values(sort_columns, ascending=False)
         st.session_state["scanner_v5_all"] = R
         st.session_state["scanner_v5_result_mode"] = "accumulation" if accumulation_scan_clicked else "standard"
+        st.session_state["scanner_v5_scan_notice"] = "✅ 검색이 완료되었습니다. 결과를 바로 아래에서 확인하세요."
+        scan_status.success(st.session_state["scanner_v5_scan_notice"])
     elif accumulation_scan_clicked:
-        st.warning("현재 기준에서 매집 흔적 점수 50점 이상인 종목이 없습니다.")
+        st.session_state["scanner_v5_scan_notice"] = "조건에 맞는 매집 흔적 종목이 없습니다."
+        scan_status.warning(st.session_state["scanner_v5_scan_notice"])
     else:
-        st.error("분석 결과가 없습니다.")
+        st.session_state["scanner_v5_scan_notice"] = "분석 결과가 없습니다."
+        scan_status.warning(st.session_state["scanner_v5_scan_notice"])
 
 if not st.session_state.get("scanner_v5_hide_market", False):
     st.divider()
