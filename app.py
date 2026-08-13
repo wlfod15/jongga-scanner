@@ -545,6 +545,108 @@ def rebound_chart(symbol, row):
     return fig
 
 
+def accumulation_snapshot(row, summary):
+    """Score observable accumulation traces; never identifies a specific trader."""
+    score, reasons, risks = 0, [], []
+    vr = float(row.get("거래량배수", 0) or 0)
+    close_pos = float(row.get("종가위치%", 50) or 50)
+    wick = float(row.get("윗꼬리%", 100) or 100)
+    relative = float(row.get("시장대비강도%p", 0) or 0)
+
+    if vr >= 3:
+        score += 20; reasons.append(f"거래량 {vr:.2f}배 급증")
+    elif vr >= 2:
+        score += 17; reasons.append(f"거래량 {vr:.2f}배 증가")
+    elif vr >= 1.5:
+        score += 13; reasons.append(f"거래량 {vr:.2f}배")
+    elif vr >= 1.2:
+        score += 8
+    else:
+        risks.append(f"거래량 {vr:.2f}배로 뚜렷한 증가 없음")
+
+    if row.get("OBV") == "충족":
+        score += 15; reasons.append("OBV 상승")
+    else:
+        risks.append("OBV 미충족")
+    if row.get("CVD Proxy") == "충족":
+        score += 15; reasons.append("CVD Proxy 매수 우위")
+    else:
+        risks.append("CVD Proxy 미충족")
+
+    if close_pos >= 85:
+        score += 15; reasons.append(f"종가가 고가권({close_pos:.0f}%)")
+    elif close_pos >= 75:
+        score += 11; reasons.append(f"종가위치 {close_pos:.0f}%")
+    elif close_pos >= 60:
+        score += 6
+    else:
+        risks.append(f"종가위치 낮음({close_pos:.0f}%)")
+
+    if wick <= 15:
+        score += 10; reasons.append(f"윗꼬리 짧음({wick:.0f}%)")
+    elif wick <= 25:
+        score += 7
+    elif wick <= 35:
+        score += 4
+    else:
+        risks.append(f"윗꼬리 과다({wick:.0f}%)")
+
+    if relative >= 3:
+        score += 10; reasons.append(f"시장 대비 +{relative:.1f}%p")
+    elif relative >= 1:
+        score += 7; reasons.append(f"시장 대비 +{relative:.1f}%p")
+    elif relative >= 0:
+        score += 3
+    else:
+        risks.append(f"시장 대비 {relative:.1f}%p")
+
+    foreign = summary.get("외국인5일순매수(억원)", np.nan)
+    if pd.notna(foreign):
+        if float(foreign) > 0:
+            score += 10; reasons.append(f"외국인 5일 {float(foreign):+,.1f}억원")
+        else:
+            risks.append(f"외국인 5일 {float(foreign):+,.1f}억원")
+    else:
+        risks.append("외국인 수급 조회 불가")
+
+    short_ratio = summary.get("공매도잔고비중%", summary.get("최근공매도비중%", np.nan))
+    if pd.notna(short_ratio):
+        if float(short_ratio) <= 3:
+            score += 5
+        elif float(short_ratio) <= 7:
+            score += 2
+        elif float(short_ratio) >= 10:
+            risks.append(f"공매도 비중 높음({float(short_ratio):.1f}%)")
+
+    score = int(max(0, min(100, round(score))))
+    if vr >= 1.5 and close_pos >= 75 and score >= 70:
+        stage = "거래량 동반 매집·돌파 가능성"
+    elif score >= 65:
+        stage = "매집 가능성 높음"
+    elif score >= 50:
+        stage = "매집 흔적 관찰"
+    elif vr >= 1.5 and wick > 35:
+        stage = "분산(물량 정리) 주의"
+    else:
+        stage = "뚜렷한 매집 흔적 낮음"
+    return {
+        "점수": score, "단계": stage,
+        "근거": " · ".join(reasons[:5]) if reasons else "뚜렷한 긍정 신호 없음",
+        "위험": " · ".join(risks[:4]) if risks else "두드러진 위험 신호 없음",
+    }
+
+
+def show_accumulation(row, summary):
+    result = accumulation_snapshot(row, summary)
+    st.markdown("### 매집 흔적")
+    c1, c2 = st.columns(2)
+    c1.metric("매집 흔적 점수", f"{result['점수']}/100")
+    c2.metric("현재 단계", result["단계"])
+    st.success(f"근거: {result['근거']}") if result["점수"] >= 65 else st.info(f"근거: {result['근거']}")
+    st.caption(f"위험 신호: {result['위험']}")
+    st.caption("※ 거래량·가격·수급의 정황 점수이며 특정 세력이나 계좌의 진입을 확인한 결과가 아닙니다.")
+
+
 def show_detail(row):
     if st.button("← 간편보기로 돌아가기", use_container_width=True, key="back_to_simple_view"):
         st.session_state["scanner_v5_selected_mode"] = "simple"
@@ -762,6 +864,10 @@ def show_simple_prediction(row):
     c3.metric(f"{horizon}일 내 +3%", probability(reach_key))
     c4.metric("손절선 도달확률", probability("초기손절도달확률%"))
 
+    with st.spinner("매집 흔적과 수급 확인 중..."):
+        accumulation_summary, _, _ = flow_and_short(row["종목코드"])
+    show_accumulation(row, accumulation_summary)
+
     st.markdown("### 진입·손절·익절")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("진입가", f"{row['진입가']:,.0f}원")
@@ -892,6 +998,11 @@ with st.form("direct_stock_search", clear_on_submit=False, enter_to_submit=True)
             placeholder="여기에 원하는 종목명을 입력하세요",
             help="PC에서는 종목명을 입력한 뒤 Enter를 눌러도 바로 검색됩니다.",
         )
+        accumulation_only = st.checkbox(
+            "매집 흔적 있는 종목만 보기 (50점 이상)",
+            value=False,
+            help="거래량·OBV·CVD Proxy·종가위치·윗꼬리·시장대비강도·외국인 수급·공매도 정황을 합산합니다.",
+        )
     with button_col:
         st.write("")
         move_clicked = st.form_submit_button(
@@ -923,9 +1034,25 @@ if move_clicked and len(matches):
                 forecast_mode=forecast_mode,
             )
         if result:
-            st.session_state["scanner_v5_selected"] = result
-            st.session_state["scanner_v5_selected_mode"] = "simple"
-            st.query_params["view"] = "simple"
+            with st.spinner("매집 흔적 확인 중..."):
+                accumulation_summary, _, _ = flow_and_short(result["종목코드"])
+            accumulation = accumulation_snapshot(result, accumulation_summary)
+            result.update({
+                "매집 흔적 점수": accumulation["점수"],
+                "매집 단계": accumulation["단계"],
+                "매집 근거": accumulation["근거"],
+                "매집 위험": accumulation["위험"],
+            })
+            if accumulation_only and accumulation["점수"] < 50:
+                st.session_state.pop("scanner_v5_selected", None)
+                st.warning(
+                    f"{result['종목명']}의 매집 흔적 점수는 {accumulation['점수']}/100으로 "
+                    f"선택한 50점 기준에 미달합니다. 위험 신호: {accumulation['위험']}"
+                )
+            else:
+                st.session_state["scanner_v5_selected"] = result
+                st.session_state["scanner_v5_selected_mode"] = "simple"
+                st.query_params["view"] = "simple"
         else: st.error("분석에 필요한 가격 데이터가 부족합니다.")
 elif move_clicked and query:
     st.warning("일치하는 KRX 종목이 없습니다.")
