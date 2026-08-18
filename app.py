@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta
+from io import StringIO
 from zoneinfo import ZoneInfo
 import unicodedata
 
@@ -7,6 +8,7 @@ import FinanceDataReader as fdr
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import requests
 from plotly.subplots import make_subplots
 import streamlit as st
 
@@ -1014,6 +1016,66 @@ def validate_at_date(symbol, selected_date, market, p, lookback_days):
 
 
 # ── 종목 목록, 수급, 공매도 ─────────────────────────────────────────
+def kind_krx_listings():
+    """Independent official KRX KIND fallback for symbol/name lookup."""
+    try:
+        response = requests.get(
+            "https://kind.krx.co.kr/corpgeneral/corpList.do",
+            params={"method": "download", "searchType": "13"},
+            headers={"User-Agent": "Mozilla/5.0"}, timeout=12,
+        )
+        response.raise_for_status()
+        response.encoding = response.apparent_encoding or "euc-kr"
+        for table in pd.read_html(StringIO(response.text)):
+            if "종목코드" not in table.columns or "회사명" not in table.columns:
+                continue
+            market_col = "시장구분" if "시장구분" in table.columns else None
+            result = pd.DataFrame({
+                "Code": table["종목코드"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(6),
+                "Name": table["회사명"].astype(str),
+                "Market": table[market_col].astype(str) if market_col else "KRX",
+            })
+            market_text = result["Market"].str.upper()
+            result = result[market_text.str.contains("KOSPI|KOSDAQ|유가|코스닥", regex=True, na=False)]
+            if len(result):
+                return result
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+
+def essential_krx_listings():
+    """Last-resort search list so a temporary listing outage never disables the app."""
+    rows = [
+        ("005930", "삼성전자", "KOSPI"), ("000660", "SK하이닉스", "KOSPI"),
+        ("402340", "SK스퀘어", "KOSPI"), ("005380", "현대차", "KOSPI"),
+        ("000270", "기아", "KOSPI"), ("373220", "LG에너지솔루션", "KOSPI"),
+        ("207940", "삼성바이오로직스", "KOSPI"), ("005490", "POSCO홀딩스", "KOSPI"),
+        ("035420", "NAVER", "KOSPI"), ("035720", "카카오", "KOSPI"),
+        ("006400", "삼성SDI", "KOSPI"), ("051910", "LG화학", "KOSPI"),
+        ("105560", "KB금융", "KOSPI"), ("055550", "신한지주", "KOSPI"),
+        ("012450", "한화에어로스페이스", "KOSPI"), ("329180", "HD현대중공업", "KOSPI"),
+        ("042660", "한화오션", "KOSPI"), ("009540", "HD한국조선해양", "KOSPI"),
+        ("010140", "삼성중공업", "KOSPI"), ("034020", "두산에너빌리티", "KOSPI"),
+        ("028260", "삼성물산", "KOSPI"), ("068270", "셀트리온", "KOSPI"),
+        ("003550", "LG", "KOSPI"), ("017670", "SK텔레콤", "KOSPI"),
+        ("030200", "KT", "KOSPI"), ("066570", "LG전자", "KOSPI"),
+        ("009150", "삼성전기", "KOSPI"), ("096770", "SK이노베이션", "KOSPI"),
+        ("010950", "S-Oil", "KOSPI"), ("003490", "대한항공", "KOSPI"),
+        ("047810", "한국항공우주", "KOSPI"), ("079550", "LIG넥스원", "KOSPI"),
+        ("000720", "현대건설", "KOSPI"), ("086790", "하나금융지주", "KOSPI"),
+        ("316140", "우리금융지주", "KOSPI"), ("032830", "삼성생명", "KOSPI"),
+        ("247540", "에코프로비엠", "KOSDAQ"), ("086520", "에코프로", "KOSDAQ"),
+        ("196170", "알테오젠", "KOSDAQ"), ("263750", "펄어비스", "KOSDAQ"),
+        ("293490", "카카오게임즈", "KOSDAQ"), ("058470", "리노공업", "KOSDAQ"),
+        ("403870", "HPSP", "KOSDAQ"), ("042700", "한미반도체", "KOSPI"),
+        ("095340", "ISC", "KOSDAQ"), ("357780", "솔브레인", "KOSDAQ"),
+        ("240810", "원익IPS", "KOSDAQ"), ("039030", "이오테크닉스", "KOSDAQ"),
+        ("041510", "에스엠", "KOSDAQ"), ("352820", "하이브", "KOSPI"),
+    ]
+    return pd.DataFrame(rows, columns=["Code", "Name", "Market"])
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def listings():
     x = pd.DataFrame()
@@ -1042,6 +1104,10 @@ def listings():
             x = pd.DataFrame({"Code": tickers, "Name": [krx_stock.get_market_ticker_name(t) for t in tickers]})
         except Exception:
             x = pd.DataFrame(columns=["Code", "Name"])
+    if x.empty:
+        x = kind_krx_listings()
+    if x.empty:
+        x = essential_krx_listings()
     code_col = next((c for c in ("Code", "Symbol") if c in x.columns), None)
     if not code_col or "Name" not in x.columns: return pd.DataFrame()
     x[code_col] = x[code_col].astype(str).str.extract(r"(\d+)", expand=False).fillna("").str.zfill(6)
