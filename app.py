@@ -1071,6 +1071,7 @@ def essential_krx_listings():
         ("403870", "HPSP", "KOSDAQ"), ("042700", "한미반도체", "KOSPI"),
         ("095340", "ISC", "KOSDAQ"), ("357780", "솔브레인", "KOSDAQ"),
         ("240810", "원익IPS", "KOSDAQ"), ("039030", "이오테크닉스", "KOSDAQ"),
+        ("348210", "넥스틴", "KOSDAQ"),
         ("041510", "에스엠", "KOSDAQ"), ("352820", "하이브", "KOSPI"),
     ]
     return pd.DataFrame(rows, columns=["Code", "Name", "Market"])
@@ -1106,8 +1107,14 @@ def listings():
             x = pd.DataFrame(columns=["Code", "Name"])
     if x.empty:
         x = kind_krx_listings()
+    # Always merge the emergency list. Some upstream listing endpoints can
+    # return a non-empty but incomplete result, which otherwise makes valid
+    # stocks disappear from search.
+    essential = essential_krx_listings()
     if x.empty:
-        x = essential_krx_listings()
+        x = essential
+    else:
+        x = pd.concat([x, essential], ignore_index=True, sort=False)
     code_col = next((c for c in ("Code", "Symbol") if c in x.columns), None)
     if not code_col or "Name" not in x.columns: return pd.DataFrame()
     x[code_col] = x[code_col].astype(str).str.extract(r"(\d+)", expand=False).fillna("").str.zfill(6)
