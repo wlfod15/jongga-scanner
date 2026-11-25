@@ -79,6 +79,36 @@
     transition: width 0.35s ease;
   }
 
+  /* ---------- buy banner ---------- */
+  .buy-banner {
+    display: flex; align-items: center; gap: 11px;
+    background: linear-gradient(135deg, #FFFBEF, #FFF3D8);
+    border: 1px solid #EFDDB1; border-radius: 16px;
+    padding: 10px 11px; margin-bottom: 14px;
+    text-decoration: none; color: var(--text);
+    box-shadow: 0 2px 10px rgba(224,180,22,0.13);
+    transition: transform 0.12s ease;
+  }
+  .buy-banner:active { transform: scale(0.985); }
+  .buy-thumb {
+    width: 52px; height: 52px; flex: 0 0 auto; display: block;
+    border-radius: 12px; object-fit: cover; object-position: center top;
+    background: #EFE5CF; border: 1px solid #E9DAB4;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  }
+  .buy-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+  .buy-title {
+    font-size: 14px; font-weight: 900; letter-spacing: -0.5px; color: #17140F;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .buy-title .hl { color: var(--pink); }
+  .buy-sub { font-size: 10.5px; font-weight: 700; color: #8A7A55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .buy-cta {
+    flex: 0 0 auto; font-size: 11.5px; font-weight: 900; color: #fff; white-space: nowrap;
+    background: #1E1D1B; border-radius: 999px; padding: 8px 12px;
+    box-shadow: 0 3px 8px rgba(30,29,27,0.22);
+  }
+
   /* ---------- section head ---------- */
   .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
   .section-title { font-size: 18px; font-weight: 900; letter-spacing: -0.4px; }
@@ -207,6 +237,11 @@
   .p-btn.ghost { background: rgba(255,255,255,0.13); color: #fff; }
   .p-btn.read { background: var(--green); color: #fff; }
   .p-btn.read.done { background: rgba(18,184,134,0.18); color: #6FE3BC; box-shadow: inset 0 0 0 1px rgba(111,227,188,0.5); }
+  .player-actions .p-btn { font-size: 12px; padding: 11px 7px; white-space: nowrap; }
+  .p-btn.buy {
+    flex: 0 0 auto; background: rgba(224,180,22,0.16); color: #F1D264;
+    box-shadow: inset 0 0 0 1px rgba(224,180,22,0.42);
+  }
   .player-nav { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
   .p-nav {
     border: 1px solid rgba(255,255,255,0.16); background: transparent; color: #fff;
@@ -253,6 +288,15 @@
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
   </div>
 
+  <a class="buy-banner" href="https://mkt.shopping.naver.com/link/6ad6b1eb77dc1937d9943f8a" target="_blank" rel="noopener noreferrer">
+    <img class="buy-thumb" src="https://i.ytimg.com/vi/cCct8s_9pzA/hqdefault.jpg" alt="" width="52" height="52" loading="eager" onerror="this.style.opacity=0" />
+    <span class="buy-text">
+      <span class="buy-title">영국판 정품 <span class="hl">84%</span> 할인구매</span>
+      <span class="buy-sub">EQ의 천재들 · 리드얼라우드</span>
+    </span>
+    <span class="buy-cta">구매하기 →</span>
+  </a>
+
   <div class="section-head">
     <div>
       <div class="section-title" id="sectionTitle">전체 86권</div>
@@ -294,6 +338,7 @@
     <div class="player-note" id="fileNote" hidden>📎 파일로 열면 영상 재생이 막힐 수 있어요. 화면이 안 나오면 아래 <b>유튜브 앱에서 보기</b>를 눌러주세요.</div>
     <div class="player-frame" id="playerFrame"></div>
     <div class="player-actions">
+      <a class="p-btn buy" id="buyBook" href="https://mkt.shopping.naver.com/link/6ad6b1eb77dc1937d9943f8a" target="_blank" rel="noopener noreferrer" aria-label="EQ 원서 책 구매하기">🛒 책 구매</a>
       <a class="p-btn ghost" id="openYt" href="#" target="_blank" rel="noopener">유튜브 앱에서 보기</a>
       <button class="p-btn read" id="playerReadBtn">✓ 읽음 체크</button>
     </div>
