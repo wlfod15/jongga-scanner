@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#FAF6EF" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>EQ의 천재들 · 리드얼라우드</title>
+<style>
+  :root {
+    --bg: #FAF6EF;
+    --card: #FFFFFF;
+    --text: #1F1F1F;
+    --muted: #6E6A63;
+    --border: #EAE2D5;
+    --pill-active: #1E1D1B;
+    --accent: #E0B416;
+    --green: #12B886;
+    --pink: #D6338F;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing: antialiased;
+  }
+  body.locked { overflow: hidden; }
+  .container { max-width: 520px; margin: 0 auto; padding: 14px 16px 0; }
+
+  /* ---------- header ---------- */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .app-icon {
+    width: 42px; height: 42px; border-radius: 13px; flex: 0 0 auto;
+    background: linear-gradient(135deg, #FF7A59, #FFB800);
+    color: #fff; font-weight: 900; font-size: 16px; letter-spacing: -0.5px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 10px rgba(255,122,89,0.30);
+  }
+  .brand-title { font-size: 18px; font-weight: 900; line-height: 1.1; letter-spacing: -0.4px; }
+  .brand-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; font-weight: 600; }
+  .top-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .icon-btn {
+    border: 1px solid var(--border); background: #fff; border-radius: 999px;
+    height: 34px; padding: 0 11px; font-size: 12.5px; font-weight: 800;
+    display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text);
+  }
+  .search-box { display: none; margin-bottom: 10px; }
+  .search-box.open { display: block; }
+  .search-input {
+    width: 100%; padding: 11px 14px; border-radius: 14px;
+    border: 1.5px solid var(--border); background: #fff; font-size: 14px; outline: none;
+  }
+  .search-input:focus { border-color: #1E1D1B; }
+
+  /* ---------- filters ---------- */
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .pills::-webkit-scrollbar { display: none; }
+
+  .pill {
+    flex: 0 0 auto; border: 1px solid var(--border); background: #fff;
+    border-radius: 999px; padding: 8px 11px; font-size: 12px; font-weight: 800;
+    color: var(--text); cursor: pointer; white-space: nowrap;
+  }
+  .pill.active { background: var(--pill-active); color: #fff; border-color: var(--pill-active); }
+
+  /* ---------- progress ---------- */
+  .progress-wrap { margin-bottom: 12px; }
+  .progress-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .progress-label { font-size: 11.5px; font-weight: 800; color: var(--muted); }
+  .progress-num { font-size: 11.5px; font-weight: 900; color: var(--text); }
+  .progress-bar { height: 7px; border-radius: 999px; background: #EDE6D8; overflow: hidden; }
+  .progress-fill {
+    height: 100%; width: 0%; border-radius: 999px;
+    background: linear-gradient(90deg, #FFB800, #12B886);
+    transition: width 0.35s ease;
+  }
+
+  /* ---------- section head ---------- */
+  .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .section-title { font-size: 18px; font-weight: 900; letter-spacing: -0.4px; }
+  .section-desc { font-size: 11.5px; color: var(--muted); margin-top: 3px; font-weight: 600; }
+  .action-row { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-shuffle, .btn-playall {
+    border-radius: 12px; padding: 9px 12px; font-size: 12.5px; font-weight: 900;
+    cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  .btn-shuffle { border: 1px solid var(--border); background: #fff; color: var(--text); }
+  .btn-playall {
+    border: none; background: var(--accent); color: #1F1F1F;
+    box-shadow: 0 3px 8px rgba(224,180,22,0.35);
+  }
+  .btn-playall:disabled { opacity: 0.45; box-shadow: none; }
+
+  /* ---------- card grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+    overflow: hidden; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.035);
+    transition: transform 0.12s ease; position: relative; display: flex; flex-direction: column;
+  }
+  .card:active { transform: scale(0.975); }
+  .cover {
+    position: relative; aspect-ratio: 16 / 9; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cover-fallback {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 30px; opacity: 0.9;
+  }
+  .cover-img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; object-position: center; display: block;
+    transition: opacity 0.2s ease, transform 0.25s ease;
+  }
+  .cover-img.hide { opacity: 0; }
+  .cover-shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.12) 34%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.12) 100%);
+  }
+  .badges { position: absolute; top: 7px; left: 7px; right: 7px; display: flex; align-items: center; gap: 4px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; white-space: nowrap;
+    font-size: 9px; font-weight: 900; letter-spacing: 0.2px;
+    padding: 4px 6px; border-radius: 999px; color: #fff; line-height: 1;
+  }
+  .chip-series { background: #1E1D1B; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+  .chip-series.miss { background: var(--pink); }
+  .chip-num { background: #35302A; box-shadow: 0 1px 4px rgba(0,0,0,0.22); }
+  .chip-read { margin-left: auto; background: var(--green); box-shadow: 0 2px 6px rgba(18,184,134,0.45); }
+  .play-orb {
+    position: absolute; width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(255,255,255,0.94); color: #1E1D1B;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10.5px; padding-left: 2px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.28);
+  }
+  .card.read .play-orb { background: rgba(255,255,255,0.82); }
+  .card-body { padding: 9px 11px 11px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+  .card-en { font-size: 13.5px; font-weight: 900; line-height: 1.22; letter-spacing: -0.2px; }
+  .card-ko { font-size: 11.5px; color: var(--muted); margin-top: 3px; font-weight: 700; }
+  .card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .duration { font-size: 10.5px; color: #9A9184; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stamp-btn {
+    border: 1px solid var(--border); background: #FAF6EF; border-radius: 999px;
+    padding: 3px 8px; font-size: 10.5px; font-weight: 900; cursor: pointer; color: #6E6A63;
+    font-family: inherit;
+  }
+  .card.read .stamp-btn { background: #E7F8F1; color: #0E9C74; border-color: #BDEBDC; }
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 40px 10px; line-height: 1.6; }
+  .footer-note { text-align: center; font-size: 11px; color: var(--muted); margin: 22px 0 0; line-height: 1.6; }
+
+  /* ---------- mom settings modal ---------- */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    align-items: center; justify-content: center; padding: 20px; z-index: 60;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: #fff; border-radius: 20px; padding: 20px; width: 100%; max-width: 360px; box-shadow: 0 12px 30px rgba(0,0,0,0.2); }
+  .modal h3 { margin: 0 0 8px; font-size: 18px; font-weight: 900; }
+  .modal p { margin: 0 0 12px; font-size: 13px; color: var(--muted); line-height: 1.55; }
+  .modal-btn {
+    width: 100%; padding: 11px; border-radius: 12px; border: none; background: #1E1D1B;
+    color: #fff; font-weight: 800; font-size: 14px; cursor: pointer; margin-top: 8px; font-family: inherit;
+  }
+  .modal-btn.secondary { background: #F1ECE3; color: #1F1F1F; }
+
+  /* ---------- player ---------- */
+  .player-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 80;
+    background: rgba(10,9,8,0.72); backdrop-filter: blur(3px);
+    align-items: flex-end; justify-content: center;
+  }
+  .player-backdrop.open { display: flex; }
+  .player {
+    width: 100%; max-width: 520px; background: #17140F; color: #fff;
+    border-radius: 22px 22px 0 0; padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.45);
+    animation: rise 0.22s ease;
+  }
+  @keyframes rise { from { transform: translateY(18px); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
+  .player-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+  .player-eyebrow { font-size: 10.5px; font-weight: 900; letter-spacing: 0.6px; color: #C8BFAC; text-transform: uppercase; }
+  .player-title { font-size: 18px; font-weight: 900; margin-top: 3px; line-height: 1.2; letter-spacing: -0.3px; }
+  .player-sub { font-size: 12px; color: #B6AD9C; margin-top: 3px; font-weight: 700; }
+  .player-close {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.12); color: #fff; font-size: 15px; cursor: pointer; font-family: inherit;
+  }
+  .player-note {
+    font-size: 11.5px; line-height: 1.5; color: #EBCE74; background: rgba(224,180,22,0.13);
+    border-radius: 10px; padding: 8px 10px; margin-bottom: 9px; font-weight: 700;
+    word-break: keep-all;
+  }
+  .player-note[hidden] { display: none; }
+  .player-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; overflow: hidden; }
+  .player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .player-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .p-btn {
+    flex: 1; text-align: center; border-radius: 12px; padding: 11px 8px; font-size: 12.5px;
+    font-weight: 900; cursor: pointer; text-decoration: none; display: inline-flex;
+    align-items: center; justify-content: center; gap: 4px; font-family: inherit; border: none;
+  }
+  .p-btn.ghost { background: rgba(255,255,255,0.13); color: #fff; }
+  .p-btn.read { background: var(--green); color: #fff; }
+  .p-btn.read.done { background: rgba(18,184,134,0.18); color: #6FE3BC; box-shadow: inset 0 0 0 1px rgba(111,227,188,0.5); }
+  .player-nav { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+  .p-nav {
+    border: 1px solid rgba(255,255,255,0.16); background: transparent; color: #fff;
+    border-radius: 12px; padding: 10px 13px; font-size: 12.5px; font-weight: 900; cursor: pointer;
+    font-family: inherit; white-space: nowrap;
+  }
+  .p-nav.next { background: rgba(255,255,255,0.92); color: #17140F; border-color: transparent; flex: 1; }
+  .p-nav:disabled { opacity: 0.35; }
+  .p-count { flex: 0 0 auto; font-size: 11.5px; color: #B6AD9C; font-weight: 800; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <div class="brand">
+      <div class="app-icon">EQ</div>
+      <div>
+        <div class="brand-title">EQ의 천재들</div>
+        <div class="brand-sub">86권 리드얼라우드</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="searchToggle" aria-label="검색">🔍</button>
+      <button class="icon-btn" id="settingsBtn">⚙️ 엄마</button>
+    </div>
+  </div>
+
+  <div class="search-box" id="searchBox">
+    <input type="text" class="search-input" id="searchInput" placeholder="영어 제목이나 캐릭터 이름 검색 (예: Tickle, 간지럼)" />
+  </div>
+
+  <div class="pills" id="pills">
+    <button class="pill active" data-filter="all">전체 86</button>
+    <button class="pill" data-filter="mr">🎩 Mr. Men 50</button>
+    <button class="pill" data-filter="miss">🎀 Little Miss 36</button>
+    <button class="pill" data-filter="read">⭐ 읽은 책 <span id="readCount">0</span></button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-top">
+      <span class="progress-label">오늘도 한 권씩 🎧</span>
+      <span class="progress-num"><span id="progressRead">0</span> / 86권</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="section-head">
+    <div>
+      <div class="section-title" id="sectionTitle">전체 86권</div>
+      <div class="section-desc">카드를 누르면 바로 재생돼요</div>
+    </div>
+    <div class="action-row">
+      <button class="btn-shuffle" id="shuffleBtn">🔀 섞기</button>
+      <button class="btn-playall" id="playAllBtn">▶ 전체 듣기</button>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <p class="footer-note">바빠맘(@busy_m.o.m) 공구 구매자 전용 가이드<br />영상은 유튜브 원어민 낭독 채널로 연결됩니다</p>
+</div>
+
+<!-- 엄마 설정 -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h3>⚙️ 엄마 설정</h3>
+    <p id="statsText">지금까지 0권 / 86권 읽었어요.</p>
+    <p style="font-size:12.5px;">💡 폰 브라우저 메뉴에서 <b>'홈 화면에 추가'</b>를 누르면 앱처럼 바로 켜서 쓸 수 있어요.<br />💡 읽음 표시는 이 폰에만 저장돼요.</p>
+    <button class="modal-btn secondary" id="resetReadBtn">읽은 기록 초기화</button>
+    <button class="modal-btn" id="closeModalBtn">닫기</button>
+  </div>
+</div>
+
+<!-- 인앱 플레이어 -->
+<div class="player-backdrop" id="playerBackdrop">
+  <div class="player" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
+    <div class="player-head">
+      <div>
+        <div class="player-eyebrow" id="playerEyebrow">#01 · Mr. Men</div>
+        <div class="player-title" id="playerTitle">Mr. Tickle</div>
+        <div class="player-sub" id="playerSub">간지럼 씨</div>
+      </div>
+      <button class="player-close" id="playerClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="player-note" id="fileNote" hidden>📎 파일로 열면 영상 재생이 막힐 수 있어요. 화면이 안 나오면 아래 <b>유튜브 앱에서 보기</b>를 눌러주세요.</div>
+    <div class="player-frame" id="playerFrame"></div>
+    <div class="player-actions">
+      <a class="p-btn ghost" id="openYt" href="#" target="_blank" rel="noopener">유튜브 앱에서 보기</a>
+      <button class="p-btn read" id="playerReadBtn">✓ 읽음 체크</button>
+    </div>
+    <div class="player-nav">
+      <button class="p-nav" id="prevBtn">◀ 이전</button>
+      <span class="p-count" id="playerCount">1 / 86</span>
+      <button class="p-nav next" id="nextBtn">다음 책 ▶</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const BOOKS = [{"id":1,"num":1,"series":"mr","en":"Mr. Tickle","ko":"간지럼 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Tickle%20read%20aloud","color":"#FF6B6B","videoId":"cCct8s_9pzA","seconds":373,"channel":"Story Time Read Aloud With Funny Twins Plus One","videoTitle":"Mr Tickle - Read Aloud Bedtime Story - A Mr. Men story.","thumbPos":"center top"},{"id":2,"num":2,"series":"mr","en":"Mr. Greedy","ko":"욕심 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Greedy%20read%20aloud","color":"#FF9F43","videoId":"w9xDns4g4WA","seconds":336,"channel":"StoryTimeKids","videoTitle":"Mr Greedy by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":3,"num":3,"series":"mr","en":"Mr. Happy","ko":"행복 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Happy%20read%20aloud","color":"#FECA57","videoId":"WWl5ip_Idf0","seconds":434,"channel":"Story Time Read Aloud With Funny Twins Plus One","videoTitle":"Mr Happy - Read Aloud Bedtime Story - Books for children","thumbPos":"center top"},{"id":4,"num":4,"series":"mr","en":"Mr. Nosey","ko":"참견 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Nosey%20read%20aloud","color":"#1DD1A1","videoId":"Oa2xxUD68dU","seconds":408,"channel":"Story Time with Owl","videoTitle":"📚 MR NOSEY | MR MEN BOOK READ ALOUD FOR KIDS","thumbPos":null},{"id":5,"num":5,"series":"mr","en":"Mr. Sneeze","ko":"재채기 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Sneeze%20read%20aloud","color":"#48DBFB","videoId":"BYc4EFNTfwk","seconds":386,"channel":"Storytime with Shamita","videoTitle":"Mr. Sneeze (Mr. Men and Little Miss). Read Aloud Kids Books","thumbPos":null},{"id":6,"num":6,"series":"mr","en":"Mr. Bump","ko":"쿵 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Bump%20read%20aloud","color":"#54A0FF","videoId":"DCUUV6Lccd4","seconds":290,"channel":"StoryTimeKids","videoTitle":"Mr Bump by Roger Hargreaves | Read aloud","thumbPos":null},{"id":7,"num":7,"series":"mr","en":"Mr. Snow","ko":"눈사람 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Snow%20read%20aloud","color":"#5F27CD","videoId":"GcrgqtpAkEA","seconds":363,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Snow (Mr Men Series) by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":8,"num":8,"series":"mr","en":"Mr. Messy","ko":"지저분 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Messy%20read%20aloud","color":"#FF9FF3","videoId":"Ogw9NXaHRcE","seconds":365,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr. Messy Mr. Men book by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":9,"num":9,"series":"mr","en":"Mr. Topsy-Turvy","ko":"뒤죽박죽 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Topsy-Turvy%20read%20aloud","color":"#00D2D3","videoId":"SHh2UKVC5Ow","seconds":417,"channel":"Children's Story Time","videoTitle":"Mr Topsy-Turvy, story read aloud","thumbPos":"center top"},{"id":10,"num":10,"series":"mr","en":"Mr. Silly","ko":"엉뚱 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Silly%20read%20aloud","color":"#EE5253","videoId":"g5RSsMHgrgY","seconds":352,"channel":"StoryTimeKids","videoTitle":"Mr Silly by Roger Hargreaves | Read aloud children story","thumbPos":null},{"id":11,"num":11,"series":"mr","en":"Mr. Uppity","ko":"거만 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Uppity%20read%20aloud","color":"#FF6B6B","videoId":"Cc8cG0vmwWg","seconds":429,"channel":"Story Time with Owl","videoTitle":"🎩 MR UPPITY | MR MEN BOOK read aloud","thumbPos":null},{"id":12,"num":12,"series":"mr","en":"Mr. Small","ko":"작아 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Small%20read%20aloud","color":"#FF9F43","videoId":"PAxDgGSWh_8","seconds":390,"channel":"Story Time with Kit","videoTitle":"Mr. Small 🍄 Read Aloud Kids Books","thumbPos":null},{"id":13,"num":13,"series":"mr","en":"Mr. Daydream","ko":"몽상 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Daydream%20read%20aloud","color":"#FECA57","videoId":"xa4T09RNYOs","seconds":339,"channel":"Story Time with Owl","videoTitle":"📚 MR DAYDREAM | MR MEN BOOK READ ALOUD FOR KIDS","thumbPos":null},{"id":14,"num":14,"series":"mr","en":"Mr. Forgetful","ko":"건망증 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Forgetful%20read%20aloud","color":"#1DD1A1","videoId":"GIM4ODHEv8o","seconds":457,"channel":"Storytime Magic Books 4 Kids","videoTitle":"Kids Books Read Aloud: Mr. Forgetful by Roger Hargreaves","thumbPos":null},{"id":15,"num":15,"series":"mr","en":"Mr. Jelly","ko":"겁쟁이 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Jelly%20read%20aloud","color":"#48DBFB","videoId":"gWQt7h_Y9UM","seconds":468,"channel":"Read Aloud Books","videoTitle":"Mr. Jelly (Mr. Men #15) read aloud by Dad","thumbPos":null},{"id":16,"num":16,"series":"mr","en":"Mr. Noisy","ko":"시끌 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Noisy%20read%20aloud","color":"#54A0FF","videoId":"FHYYRLr0Y_c","seconds":356,"channel":"Story Time with Owl","videoTitle":"🔊 MR NOISY | MR MEN BOOK | Kids Read Aloud Story by Roger Hargreaves","thumbPos":null},{"id":17,"num":17,"series":"mr","en":"Mr. Lazy","ko":"게으름 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Lazy%20read%20aloud","color":"#5F27CD","videoId":"iLnIGkiTGGQ","seconds":450,"channel":"📚Storytime with Aussie Mum!🐨","videoTitle":"😴 Mr. Lazy Read Aloud by Aussie Mum | Relaxing Storytime 🇦🇺📚","thumbPos":null},{"id":18,"num":18,"series":"mr","en":"Mr. Funny","ko":"우스워 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Funny%20read%20aloud","color":"#FF9FF3","videoId":"hsgZ39c0K-Y","seconds":272,"channel":"Story Time with Kit","videoTitle":"Mr. FUNNY 😹 Read Aloud Kids Book","thumbPos":null},{"id":19,"num":19,"series":"mr","en":"Mr. Mean","ko":"구두쇠 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Mean%20read%20aloud","color":"#00D2D3","videoId":"92TOWO6Q8bI","seconds":567,"channel":"MouseyTeng","videoTitle":"Mr. Mean by Roger Hargreaves | Mr. Men Full Story Read Aloud","thumbPos":null},{"id":20,"num":20,"series":"mr","en":"Mr. Chatterbox","ko":"수다 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Chatterbox%20read%20aloud","color":"#EE5253","videoId":"1m-y2MmomPw","seconds":377,"channel":"StoryTimeKids","videoTitle":"Listen and read along with Mr Chatterbox | Mr Men series by Roger Hargreaves","thumbPos":null},{"id":21,"num":21,"series":"mr","en":"Mr. Fussy","ko":"꼼꼼 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Fussy%20read%20aloud","color":"#FF6B6B","videoId":"LpNPpWHJj34","seconds":413,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Men - Mr Fussy by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":22,"num":22,"series":"mr","en":"Mr. Bounce","ko":"통통 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Bounce%20read%20aloud","color":"#FF9F43","videoId":"VjobI5GXPYA","seconds":343,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Bounce (Mr Men Series) by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":23,"num":23,"series":"mr","en":"Mr. Muddle","ko":"어수선 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Muddle%20read%20aloud","color":"#FECA57","videoId":"Rwk9nuzUhBc","seconds":293,"channel":"Story Time with Owl","videoTitle":"😕 MR MUDDLE | MR MEN BOOK | Kids Read Aloud | Virtual Story time","thumbPos":null},{"id":24,"num":24,"series":"mr","en":"Mr. Dizzy","ko":"멍청 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Dizzy%20read%20aloud","color":"#1DD1A1","videoId":"6UEjyt73nZo","seconds":437,"channel":"📚Storytime with Aussie Mum!🐨","videoTitle":"🌟 Mr. Dizzy | Read Aloud by an Aussie Mum | Mr. Men Story Time for Kids","thumbPos":null},{"id":25,"num":25,"series":"mr","en":"Mr. Impossible","ko":"불가능없어 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Impossible%20read%20aloud","color":"#48DBFB","videoId":"ad-ad679wBs","seconds":391,"channel":"📚Storytime with Aussie Mum!🐨","videoTitle":"Aussie Mum Reads “Mr. Impossible” | Mr. Men Read Aloud for Kids","thumbPos":null},{"id":26,"num":26,"series":"mr","en":"Mr. Strong","ko":"힘세 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Strong%20read%20aloud","color":"#54A0FF","videoId":"EOjPby--znc","seconds":314,"channel":"Story Time with Owl","videoTitle":"💪🏻 MR STRONG | MR MEN BOOK read aloud","thumbPos":null},{"id":27,"num":27,"series":"mr","en":"Mr. Grumpy","ko":"심술 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Grumpy%20read%20aloud","color":"#5F27CD","videoId":"i0cfTpXXekk","seconds":327,"channel":"StoryTimeKids","videoTitle":"Mr Grumpy by Roger Hargreaves - Read Aloud!","thumbPos":null},{"id":28,"num":28,"series":"mr","en":"Mr. Clumsy","ko":"서툴러 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Clumsy%20read%20aloud","color":"#FF9FF3","videoId":"X8KCJ6YtbTY","seconds":329,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Clumsy (Mr Men Series) by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":29,"num":29,"series":"mr","en":"Mr. Quiet","ko":"조용 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Quiet%20read%20aloud","color":"#00D2D3","videoId":"YJdeGT5Qpb8","seconds":383,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr. Quiet Mr. Men book by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":30,"num":30,"series":"mr","en":"Mr. Rush","ko":"서둘러 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Rush%20read%20aloud","color":"#EE5253","videoId":"-f5h0pE-5Hc","seconds":415,"channel":"Storytime with Mr Julio!!!","videoTitle":"storytime: Mr Rush by Roger Hargreaves 😀😉","thumbPos":null},{"id":31,"num":31,"series":"mr","en":"Mr. Tall","ko":"키다리 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Tall%20read%20aloud","color":"#FF6B6B","videoId":"WQ8zM9HpkJo","seconds":344,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Tall (Mr Men Series) by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":32,"num":32,"series":"mr","en":"Mr. Worry","ko":"걱정 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Worry%20read%20aloud","color":"#FF9F43","videoId":"L76VmSopHh8","seconds":361,"channel":"Storytime Magic Books 4 Kids","videoTitle":"Kids Books Read Aloud: Mr. Worry by Roger Hargreaves","thumbPos":null},{"id":33,"num":33,"series":"mr","en":"Mr. Nonsense","ko":"터무니없어 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Nonsense%20read%20aloud","color":"#FECA57","videoId":"aoDzR2Up4oI","seconds":388,"channel":"📚Storytime with Aussie Mum!🐨","videoTitle":"🎩 Mr. Nonsense Read Aloud by Aussie Mum | Fun & Silly Storytime for Kids 🇦🇺📚","thumbPos":null},{"id":34,"num":34,"series":"mr","en":"Mr. Wrong","ko":"틀려 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Wrong%20read%20aloud","color":"#1DD1A1","videoId":"DQqe5xuiRjU","seconds":398,"channel":"📚Storytime with Aussie Mum!🐨","videoTitle":"🎩 Mr. Wrong Read Aloud by Aussie Mum | Hilarious Storytime from the Mr. Men Series 🇦🇺📚","thumbPos":null},{"id":35,"num":35,"series":"mr","en":"Mr. Skinny","ko":"말라 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Skinny%20read%20aloud","color":"#48DBFB","videoId":"7D2vxqCPYP4","seconds":285,"channel":"Books Read Aloud For Kids","videoTitle":"🍰 MR SKINNY | MR MEN Story Read Aloud for Kids","thumbPos":null},{"id":36,"num":36,"series":"mr","en":"Mr. Mischief","ko":"장난 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Mischief%20read%20aloud","color":"#54A0FF","videoId":"NJg5jYzU9V4","seconds":473,"channel":"Storytime Hullabaloo Hi","videoTitle":"Children's Books Read Aloud - Mr Mischief | By Roger Hargreaves","thumbPos":null},{"id":37,"num":37,"series":"mr","en":"Mr. Clever","ko":"똑똑 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Clever%20read%20aloud","color":"#5F27CD","videoId":"O8rY0DTYhtg","seconds":385,"channel":"📚Storytime with Aussie Mum!🐨","videoTitle":"🧠 Mr. Clever Read Aloud by Aussie Mum | Fun Storytime from the Mr. Men Series 🇦🇺📚","thumbPos":null},{"id":38,"num":38,"series":"mr","en":"Mr. Busy","ko":"바빠 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Busy%20read%20aloud","color":"#FF9FF3","videoId":"Awb3wri5vF0","seconds":337,"channel":"StoryTimeKids","videoTitle":"Mr Busy by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":39,"num":39,"series":"mr","en":"Mr. Slow","ko":"느려 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Slow%20read%20aloud","color":"#00D2D3","videoId":"LjcQngJtNm8","seconds":342,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Slow Mr Men book by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":40,"num":40,"series":"mr","en":"Mr. Brave","ko":"용감 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Brave%20read%20aloud","color":"#EE5253","videoId":"F8-5HevHHiY","seconds":349,"channel":"Read Aloud StoryTime","videoTitle":"MR. BRAVE | Roger Hargreaves | Read aloud | mrmen.com","thumbPos":null},{"id":41,"num":41,"series":"mr","en":"Mr. Grumble","ko":"투덜 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Grumble%20read%20aloud","color":"#FF6B6B","videoId":"RCqnFsVwoQY","seconds":203,"channel":"Story Time with Owl","videoTitle":"📚 MR GRUMBLE | MR MEN STORY READ ALOUD | Virtual Storytime for Kids","thumbPos":null},{"id":42,"num":42,"series":"mr","en":"Mr. Perfect","ko":"완벽 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Perfect%20read%20aloud","color":"#FF9F43","videoId":"gb63UbPfDus","seconds":265,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Perfect (Mr Men Series) by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":43,"num":43,"series":"mr","en":"Mr. Cheerful","ko":"명랑 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Cheerful%20read%20aloud","color":"#FECA57","videoId":"AkiJcVwcMn4","seconds":269,"channel":"📚Storytime with Aussie Mum!🐨","videoTitle":"😊 Mr. Cheerful | Read-Aloud with an Aussie Mum | Mr. Men Storytime for Kids 📚🇦🇺","thumbPos":null},{"id":44,"num":44,"series":"mr","en":"Mr. Cool","ko":"멋져 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Cool%20read%20aloud","color":"#1DD1A1","videoId":"d_VhGtMUWOU","seconds":276,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr. Cool Mr. Men book by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":45,"num":45,"series":"mr","en":"Mr. Rude","ko":"무례 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Rude%20read%20aloud","color":"#48DBFB","videoId":"whL44hLGMow","seconds":272,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr. Rude Mr. Men book by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":46,"num":46,"series":"mr","en":"Mr. Good","ko":"착해 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Good%20read%20aloud","color":"#54A0FF","videoId":"Xm3tPyxEhc0","seconds":266,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Good (Mr Men Series) by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":47,"num":47,"series":"mr","en":"Mr. Nobody","ko":"아무도없어 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Nobody%20read%20aloud","color":"#5F27CD","videoId":"wHI1M7xws2k","seconds":456,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Men - Mr Nobody by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":48,"num":48,"series":"mr","en":"Mr. Birthday","ko":"생일 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Birthday%20read%20aloud","color":"#FF9FF3","videoId":"XV6uXOtUAQA","seconds":339,"channel":"Books Read Aloud For Kids","videoTitle":"📚 5 Minute Bedtime Story | MR BIRTHDAY by Roger Hargreaves Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":49,"num":49,"series":"mr","en":"Mr. Christmas","ko":"크리스마스 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Christmas%20read%20aloud","color":"#00D2D3","videoId":"KiAPRZ_NyG8","seconds":432,"channel":"StoryTimeKids","videoTitle":"Mr 🎅 Christmas 🎄 by Roger Hargreaves | Read aloud 📖✨ with Story Time Kids","thumbPos":null},{"id":50,"num":50,"series":"mr","en":"Mr. Adventure","ko":"모험 씨","url":"https://www.youtube.com/results?search_query=Mr.%20Adventure%20read%20aloud","color":"#EE5253","videoId":"_pchZ_gsXx4","seconds":211,"channel":"Books For Kids read aloud by Flying Dragons (Books Read Aloud for Kids)","videoTitle":"Mr Adventure (Mr Men Series) by Roger Hargreaves | Books Read Aloud for Children | Audiobooks","thumbPos":null},{"id":51,"num":1,"series":"miss","en":"Little Miss Bossy","ko":"명령 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Bossy%20read%20aloud","color":"#FF78C4","videoId":"Wm0XrRmX6gM","seconds":399,"channel":"Storytime Magic Books 4 Kids","videoTitle":"Kids Books Read Aloud: Little Miss Bossy by Roger Hargreaves","thumbPos":null},{"id":52,"num":2,"series":"miss","en":"Little Miss Naughty","ko":"장난 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Naughty%20read%20aloud","color":"#E056FD","videoId":"Qe0UdNC3EpE","seconds":279,"channel":"Books Read Aloud For Kids","videoTitle":"Kids Bedtime Story | LITTLE MISS NAUGHTY Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":53,"num":3,"series":"miss","en":"Little Miss Neat","ko":"깔끔 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Neat%20read%20aloud","color":"#F9CA24","videoId":"Mcfk0XgUY1A","seconds":290,"channel":"StoryTimeKids","videoTitle":"Little Miss Neat by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":54,"num":4,"series":"miss","en":"Little Miss Sunshine","ko":"햇빛 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Sunshine%20read%20aloud","color":"#686DE0","videoId":"oFj-vcRi9JY","seconds":315,"channel":"Books Read Aloud For Kids","videoTitle":"StoryTime | LITTLE MISS SUNSHINE Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":55,"num":5,"series":"miss","en":"Little Miss Tiny","ko":"꼬마 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Tiny%20read%20aloud","color":"#FF6348","videoId":"sUYvIAgxyCo","seconds":292,"channel":"Books Read Aloud For Kids","videoTitle":"Story Time | LITTLE MISS TINY Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":56,"num":6,"series":"miss","en":"Little Miss Trouble","ko":"말썽 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Trouble%20read%20aloud","color":"#2ED573","videoId":"hu0gf4_wXz4","seconds":275,"channel":"Books Read Aloud For Kids","videoTitle":"Read Along Story | LITTLE MISS TROUBLE Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":57,"num":7,"series":"miss","en":"Little Miss Giggles","ko":"웃음 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Giggles%20read%20aloud","color":"#1E90FF","videoId":"MILExdW__kY","seconds":331,"channel":"Books Read Aloud For Kids","videoTitle":"Read Along Story | LITTLE MISS GIGGLES Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":58,"num":8,"series":"miss","en":"Little Miss Helpful","ko":"도움 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Helpful%20read%20aloud","color":"#FFA502","videoId":"L6f_x4N7PYg","seconds":260,"channel":"Books Read Aloud For Kids","videoTitle":"Kids Bedtime Story | LITTLE MISS HELPFUL Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":59,"num":9,"series":"miss","en":"Little Miss Magic","ko":"마술 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Magic%20read%20aloud","color":"#FF4757","videoId":"XANVhj2dmkU","seconds":325,"channel":"Books Read Aloud For Kids","videoTitle":"Story Time | LITTLE MISS Magic by Roger Hargreaves Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":60,"num":10,"series":"miss","en":"Little Miss Shy","ko":"부끄럼 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Shy%20read%20aloud","color":"#70A1FF","videoId":"AyChkAUUWOk","seconds":305,"channel":"Books Read Aloud For Kids","videoTitle":"5 Minute Bedtime Story | LITTLE MISS Shy by Roger Hargreaves Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":61,"num":11,"series":"miss","en":"Little Miss Splendid","ko":"뽐내 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Splendid%20read%20aloud","color":"#FF78C4","videoId":"_l_CzJJayA4","seconds":305,"channel":"Books Read Aloud For Kids","videoTitle":"5 Minute Bed Time Story | LITTLE MISS SPLENDID Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":62,"num":12,"series":"miss","en":"Little Miss Twins","ko":"쌍둥이 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Twins%20read%20aloud","color":"#E056FD","videoId":"FMxP8KtI1BU","seconds":298,"channel":"Books Read Aloud For Kids","videoTitle":"5 Minute Bed Time Story | LITTLE MISS TWINS Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":63,"num":13,"series":"miss","en":"Little Miss Chatterbox","ko":"수다 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Chatterbox%20read%20aloud","color":"#F9CA24","videoId":"83br0BP3VSo","seconds":297,"channel":"Books Read Aloud For Kids","videoTitle":"5 Minute Bed Time Story | LITTLE MISS CHATTERBOX Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":64,"num":14,"series":"miss","en":"Little Miss Dotty","ko":"별나 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Dotty%20read%20aloud","color":"#686DE0","videoId":"lSWgPWJOTDY","seconds":332,"channel":"Books Read Aloud For Kids","videoTitle":"Story Time Online | LITTLE MISS DOTTY Read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":65,"num":15,"series":"miss","en":"Little Miss Late","ko":"늦어 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Late%20read%20aloud","color":"#FF6348","videoId":"uFgWYdn23Yc","seconds":279,"channel":"StoryTimeKids","videoTitle":"Listen and read along with LITTLE MISS LATE by Roger Hargreaves","thumbPos":null},{"id":66,"num":16,"series":"miss","en":"Little Miss Lucky","ko":"행운 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Lucky%20read%20aloud","color":"#2ED573","videoId":"gIozHxV05x4","seconds":281,"channel":"StoryTimeKids","videoTitle":"Little Miss Lucky by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":67,"num":17,"series":"miss","en":"Little Miss Scatterbrain","ko":"덜렁 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Scatterbrain%20read%20aloud","color":"#1E90FF","videoId":"RBdzxGq0Mqg","seconds":264,"channel":"Childrens Story Time","videoTitle":"Little Miss Scatterbrain - Read Aloud Stories Kids Childrens Bedtime Story - Mr Men English","thumbPos":null},{"id":68,"num":18,"series":"miss","en":"Little Miss Star","ko":"스타 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Star%20read%20aloud","color":"#FFA502","videoId":"yCosDfJ2gwU","seconds":301,"channel":"StoryTimeKids","videoTitle":"Do you want to be famous like Little Miss Star? Listen and read along to this classic story!","thumbPos":null},{"id":69,"num":19,"series":"miss","en":"Little Miss Busy","ko":"부지런 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Busy%20read%20aloud","color":"#FF4757","videoId":"Wq3ql_8JIFM","seconds":231,"channel":"StoryTimeKids","videoTitle":"Little Miss Busy by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":70,"num":20,"series":"miss","en":"Little Miss Quick","ko":"빨라 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Quick%20read%20aloud","color":"#70A1FF","videoId":"7AZXJLgBbgo","seconds":563,"channel":"Storytime With Frozendoll","videoTitle":"Little Miss Quick -  Read out Aloud with Frozendoll -  Storytime","thumbPos":null},{"id":71,"num":21,"series":"miss","en":"Little Miss Wise","ko":"슬기 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Wise%20read%20aloud","color":"#FF78C4","videoId":"pg-w9dhAwHc","seconds":450,"channel":"Mr. Majid ","videoTitle":"LITTLE MISS WISE. Mr Men Little Miss Read Aloud Read Along.","thumbPos":"center top"},{"id":72,"num":22,"series":"miss","en":"Little Miss Tidy","ko":"단정 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Tidy%20read%20aloud","color":"#E056FD","videoId":"Cb8QpanCB44","seconds":174,"channel":"StoryTimeKids","videoTitle":"Little Miss Tidy by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":73,"num":23,"series":"miss","en":"Little Miss Greedy","ko":"욕심 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Greedy%20read%20aloud","color":"#F9CA24","videoId":"zjZUMnmzzrc","seconds":418,"channel":"Storytime Magic Books 4 Kids","videoTitle":"Kids Books Read Aloud: Little Miss Greedy by Roger Hargreaves","thumbPos":null},{"id":74,"num":24,"series":"miss","en":"Little Miss Fickle","ko":"변덕 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Fickle%20read%20aloud","color":"#686DE0","videoId":"rnHggZgDLgM","seconds":299,"channel":"StoryTimeKids","videoTitle":"Little Miss Fickle by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":75,"num":25,"series":"miss","en":"Little Miss Brainy","ko":"유식 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Brainy%20read%20aloud","color":"#FF6348","videoId":"pw_GwrN3WtM","seconds":185,"channel":"StoryTimeKids","videoTitle":"Little Miss Brainy by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":76,"num":26,"series":"miss","en":"Little Miss Stubborn","ko":"고집 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Stubborn%20read%20aloud","color":"#2ED573","videoId":"FVpm49wzJL4","seconds":345,"channel":"Storytime Magic Books 4 Kids","videoTitle":"Kids Books Read Aloud: Little Miss Stubborn by Roger Hargreaves","thumbPos":null},{"id":77,"num":27,"series":"miss","en":"Little Miss Curious","ko":"호기심 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Curious%20read%20aloud","color":"#1E90FF","videoId":"AaneZMvnbT0","seconds":209,"channel":"StoryTimeKids","videoTitle":"Little Miss Curious by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":78,"num":28,"series":"miss","en":"Little Miss Fun","ko":"재미 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Fun%20read%20aloud","color":"#FFA502","videoId":"FdCQcJ_2Mu4","seconds":155,"channel":"StoryTimeKids","videoTitle":"Little Miss Fun by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":79,"num":29,"series":"miss","en":"Little Miss Contrary","ko":"반대 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Contrary%20read%20aloud","color":"#FF4757","videoId":"NgzehJmIpoA","seconds":341,"channel":"Story Time Pals","videoTitle":"LITTLE MISS CONTRARY by Roger Hargreaves | Story Time Pals | Kids Books Read Aloud","thumbPos":null},{"id":80,"num":30,"series":"miss","en":"Little Miss Somersault","ko":"재주넘기 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Somersault%20read%20aloud","color":"#70A1FF","videoId":"oIFFp2oTeOU","seconds":305,"channel":"📚Storytime with Aussie Mum!🐨","videoTitle":"🤸‍♀️ Little Miss Somersault | Read-Aloud with an Aussie Mum | Energetic Storytime for Kids 🇦🇺📚","thumbPos":null},{"id":81,"num":31,"series":"miss","en":"Little Miss Scary","ko":"무서워 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Scary%20read%20aloud","color":"#FF78C4","videoId":"9grzvG2cHF0","seconds":223,"channel":"Storytime Hullabaloo Hi","videoTitle":"Children's Books Read Aloud - Little Miss Scary. Roger Hargreaves","thumbPos":null},{"id":82,"num":32,"series":"miss","en":"Little Miss Bad","ko":"나빠 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Bad%20read%20aloud","color":"#E056FD","videoId":"u7bKZK8QJKA","seconds":315,"channel":"Storytime Hullabaloo Hi","videoTitle":"Children's Books Read Aloud - Little Miss Bad | By Adam Hargreaves","thumbPos":null},{"id":83,"num":33,"series":"miss","en":"Little Miss Whoops","ko":"어머나 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Whoops%20read%20aloud","color":"#F9CA24","videoId":"91XY7JTprJQ","seconds":165,"channel":"StoryTimeKids","videoTitle":"Little Miss Whoops by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":84,"num":34,"series":"miss","en":"Little Miss Princess","ko":"공주 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Princess%20read%20aloud","color":"#686DE0","videoId":"e3gypIc7CkI","seconds":296,"channel":"Books Read Aloud For Kids","videoTitle":"👑 LITTLE MISS PRINCESS read Aloud by Books Read Aloud for Kids","thumbPos":null},{"id":85,"num":35,"series":"miss","en":"Little Miss Hug","ko":"포옹 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Hug%20read%20aloud","color":"#FF6348","videoId":"0pBiugja9Zs","seconds":208,"channel":"StoryTimeKids","videoTitle":"Little Miss Hug by Roger Hargreaves | Read aloud with Story Time Kids","thumbPos":null},{"id":86,"num":36,"series":"miss","en":"Little Miss Inventor","ko":"발명 양","url":"https://www.youtube.com/results?search_query=Little%20Miss%20Inventor%20read%20aloud","color":"#2ED573","videoId":"6llj0Zruce8","seconds":262,"channel":"Storytime Hullabaloo Hi","videoTitle":"Children's Books Read Aloud - Little Miss Inventor | By Adam Hargreaves","thumbPos":null}];
+
+  const SERIES_LABEL = { mr: 'Mr. Men', miss: 'Little Miss' };
+  const SERIES_EMOJI = { mr: '🎩', miss: '🎀' };
+
+  let currentFilter = 'all';
+  let searchQuery = '';
+  let orderBooks = [...BOOKS];
+  let readSet = new Set();
+  try {
+    readSet = new Set((JSON.parse(localStorage.getItem('eq_read_books') || '[]') || []).map(Number));
+  } catch (e) { readSet = new Set(); }
+
+  const grid = document.getElementById('grid');
+  const readCountEl = document.getElementById('readCount');
+  const progressReadEl = document.getElementById('progressRead');
+  const progressFill = document.getElementById('progressFill');
+  const sectionTitle = document.getElementById('sectionTitle');
+  const statsText = document.getElementById('statsText');
+
+  function fmtDur(sec) {
+    if (!sec) return '';
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function saveRead() {
+    try { localStorage.setItem('eq_read_books', JSON.stringify([...readSet])); } catch (e) {}
+    readCountEl.textContent = readSet.size;
+    progressReadEl.textContent = readSet.size;
+    progressFill.style.width = (readSet.size / Math.max(1, BOOKS.length) * 100).toFixed(1) + '%';
+    statsText.textContent = `지금까지 ${readSet.size}권 / ${BOOKS.length}권 읽었어요!`;
+  }
+
+  function getFiltered() {
+    return orderBooks.filter(b => {
+      if (currentFilter === 'mr' && b.series !== 'mr') return false;
+      if (currentFilter === 'miss' && b.series !== 'miss') return false;
+      if (currentFilter === 'read' && !readSet.has(b.id)) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return b.en.toLowerCase().includes(q) || b.ko.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }
+
+  function cardHTML(b) {
+    const isRead = readSet.has(b.id);
+    const label = SERIES_LABEL[b.series] || '';
+    const num = '#' + String(b.id).padStart(2, '0');
+    const thumb = b.videoId
+      ? `<img class="cover-img" src="https://i.ytimg.com/vi/${b.videoId}/hqdefault.jpg" alt="" loading="lazy" decoding="async"
+             ${b.thumbPos ? `style="object-position:${b.thumbPos}"` : ''} onerror="this.classList.add('hide')" />`
+      : '';
+    return `
+      <div class="card ${isRead ? 'read' : ''}" data-id="${b.id}">
+        <div class="cover" style="background: linear-gradient(135deg, ${b.color}, ${b.color}cc);">
+          <div class="cover-fallback">${SERIES_EMOJI[b.series] || '📚'}</div>
+          ${thumb}
+          <div class="cover-shade"></div>
+          <div class="badges">
+            <span class="chip chip-series ${b.series}">${label}</span>
+            <span class="chip chip-num">${num}</span>
+            ${isRead ? '<span class="chip chip-read">✓ 읽음</span>' : ''}
+          </div>
+          <div class="play-orb">▶</div>
+        </div>
+        <div class="card-body">
+          <div>
+            <div class="card-en">${b.en}</div>
+            <div class="card-ko">${b.ko}</div>
+          </div>
+          <div class="card-foot">
+            <span class="duration">${fmtDur(b.seconds) || '리드얼라우드'}</span>
+            <button class="stamp-btn" data-stamp="${b.id}">${isRead ? '✓ 읽음' : '체크'}</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function render() {
+    const list = getFiltered();
+    const titles = {
+      all: `전체 ${list.length}권`,
+      mr: `🎩 Mr. Men ${list.length}권`,
+      miss: `🎀 Little Miss ${list.length}권`,
+      read: `⭐ 읽은 책 ${list.length}권`
+    };
+    sectionTitle.textContent = titles[currentFilter];
+    document.getElementById('playAllBtn').disabled = list.length === 0;
+    grid.innerHTML = list.length
+      ? list.map(cardHTML).join('')
+      : '<div class="empty">해당하는 책이 없어요.<br />다른 검색어나 필터를 눌러보세요.</div>';
+  }
+
+  function toggleRead(id) {
+    if (readSet.has(id)) readSet.delete(id); else readSet.add(id);
+    saveRead();
+    render();
+    if (player.open) syncPlayerReadButton();
+  }
+
+  /* ---------------- in-app player ---------------- */
+  const player = { open: false, playlist: [], index: 0 };
+
+  const backdrop = document.getElementById('playerBackdrop');
+  const frame = document.getElementById('playerFrame');
+  const eyebrow = document.getElementById('playerEyebrow');
+  const pTitle = document.getElementById('playerTitle');
+  const pSub = document.getElementById('playerSub');
+  const pCount = document.getElementById('playerCount');
+  const openYt = document.getElementById('openYt');
+  const readBtn = document.getElementById('playerReadBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  function currentBook() {
+    return BOOKS.find(b => b.id === player.playlist[player.index]) || null;
+  }
+
+  function loadVideo(b) {
+    if (!b) return;
+    frame.innerHTML = b.videoId
+      ? `<iframe src="https://www.youtube.com/embed/${b.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1"
+                 title="${b.en} read aloud" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                 allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
+      : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:13px;text-align:center;padding:16px;">
+           영상이 연결되지 않았어요.<br />아래 '유튜브 앱에서 보기'를 눌러주세요.</div>`;
+    eyebrow.textContent = '#' + String(b.id).padStart(2, '0') + ' · ' + (SERIES_LABEL[b.series] || '');
+    pTitle.textContent = b.en;
+    pSub.textContent = b.ko + (b.seconds ? ' · ' + fmtDur(b.seconds) : '');
+    openYt.href = b.videoId ? `https://www.youtube.com/watch?v=${b.videoId}` : b.url;
+    pCount.textContent = (player.index + 1) + ' / ' + player.playlist.length;
+    prevBtn.disabled = player.index <= 0;
+    nextBtn.disabled = player.index >= player.playlist.length - 1;
+    syncPlayerReadButton();
+  }
+
+  function syncPlayerReadButton() {
+    const b = currentBook();
+    if (!b) return;
+    if (readSet.has(b.id)) {
+      readBtn.textContent = '✓ 읽음 완료';
+      readBtn.classList.add('done');
+    } else {
+      readBtn.textContent = '✓ 읽음 체크';
+      readBtn.classList.remove('done');
+    }
+  }
+
+  function openPlayer(bookId, playlist) {
+    const list = (playlist && playlist.length) ? playlist : getFiltered().map(b => b.id);
+    const idx = Math.max(0, list.indexOf(bookId));
+    if (idx < 0) return;
+    player.playlist = list;
+    player.index = idx;
+    player.open = true;
+    backdrop.classList.add('open');
+    document.body.classList.add('locked');
+    loadVideo(currentBook());
+  }
+
+  function closePlayer() {
+    player.open = false;
+    backdrop.classList.remove('open');
+    document.body.classList.remove('locked');
+    frame.innerHTML = '';   /* stop playback */
+  }
+
+  function step(delta) {
+    const ni = player.index + delta;
+    if (ni < 0 || ni >= player.playlist.length) return;
+    player.index = ni;
+    loadVideo(currentBook());
+  }
+
+  grid.addEventListener('click', (e) => {
+    const stamp = e.target.closest('[data-stamp]');
+    if (stamp) {
+      e.stopPropagation();
+      toggleRead(Number(stamp.dataset.stamp));
+      return;
+    }
+    const card = e.target.closest('.card');
+    if (card) openPlayer(Number(card.dataset.id), getFiltered().map(b => b.id));
+  });
+
+  document.getElementById('pills').addEventListener('click', (e) => {
+    const pill = e.target.closest('.pill');
+    if (!pill) return;
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    currentFilter = pill.dataset.filter;
+    render();
+  });
+
+  document.getElementById('searchToggle').addEventListener('click', () => {
+    const box = document.getElementById('searchBox');
+    box.classList.toggle('open');
+    if (box.classList.contains('open')) document.getElementById('searchInput').focus();
+  });
+
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    searchQuery = e.target.value.trim();
+    render();
+  });
+
+  document.getElementById('shuffleBtn').addEventListener('click', () => {
+    orderBooks = [...orderBooks].sort(() => Math.random() - 0.5);
+    render();
+  });
+
+  /* ▶ 전체 듣기 : 현재 목록 첫 곡부터 연속 재생 */
+  document.getElementById('playAllBtn').addEventListener('click', () => {
+    const list = getFiltered();
+    if (!list.length) return;
+    openPlayer(list[0].id, list.map(b => b.id));
+  });
+
+  prevBtn.addEventListener('click', () => step(-1));
+  nextBtn.addEventListener('click', () => step(1));
+  document.getElementById('playerClose').addEventListener('click', closePlayer);
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closePlayer(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && player.open) closePlayer(); });
+
+  readBtn.addEventListener('click', () => {
+    const b = currentBook();
+    if (b) toggleRead(b.id);
+  });
+
+  /* 엄마 설정 */
+  const momModal = document.getElementById('modalBackdrop');
+  document.getElementById('settingsBtn').addEventListener('click', () => momModal.classList.add('open'));
+  document.getElementById('closeModalBtn').addEventListener('click', () => momModal.classList.remove('open'));
+  momModal.addEventListener('click', (e) => { if (e.target === momModal) momModal.classList.remove('open'); });
+  document.getElementById('resetReadBtn').addEventListener('click', () => {
+    if (!confirm('읽은 기록을 모두 지울까요?')) return;
+    readSet.clear();
+    saveRead();
+    render();
+    momModal.classList.remove('open');
+  });
+
+  if (location.protocol === 'file:') document.getElementById('fileNote').hidden = false;
+
+  saveRead();
+  render();
+</script>
+</body>
+</html>
