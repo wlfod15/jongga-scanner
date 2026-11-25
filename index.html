@@ -108,6 +108,14 @@
     background: #1E1D1B; border-radius: 999px; padding: 8px 12px;
     box-shadow: 0 3px 8px rgba(30,29,27,0.22);
   }
+  /* small phones (320~350px): keep the discount line intact */
+  @media (max-width: 350px) {
+    .buy-banner { gap: 8px; padding: 9px 10px; }
+    .buy-thumb { width: 44px; height: 44px; border-radius: 10px; }
+    .buy-title { font-size: 12.5px; letter-spacing: -0.4px; }
+    .buy-sub { display: none; }
+    .buy-cta { font-size: 11px; padding: 7px 9px; }
+  }
 
   /* ---------- section head ---------- */
   .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
