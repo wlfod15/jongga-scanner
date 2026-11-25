@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#F4FBF7" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="description" content="초등 3~6학년 사회·과학·역사·한자 교과서 연계 공식 영상 31선 모음" />
+<title>교과서 연계 31선 · 초등 사회·과학·역사·한자</title>
+<style>
+  :root {
+    --bg: #F4FBF7;
+    --bg2: #EFF7F3;
+    --card: #FFFFFF;
+    --text: #16241D;
+    --muted: #6B7C73;
+    --border: #E2EEE7;
+    --mint: #12B886;
+    --mint-soft: #E4FAF1;
+    --lemon: #FFD84D;
+    --ink: #16241D;
+    --shadow: 0 2px 10px rgba(20,60,40,0.055);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: calc(30px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+  body.locked { overflow: hidden; }
+  .container { max-width: 520px; margin: 0 auto; padding: 14px 16px 0; }
+
+  /* ---------- header ---------- */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 13px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .app-icon {
+    width: 44px; height: 44px; border-radius: 14px; flex: 0 0 auto;
+    background: linear-gradient(140deg, #3DDC97 0%, #12B886 45%, #0FA97E 100%);
+    color: #fff; font-weight: 900; font-size: 17px; letter-spacing: -0.6px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 5px 12px rgba(18,184,134,0.32);
+  }
+  .brand-title { font-size: 18px; font-weight: 900; line-height: 1.12; letter-spacing: -0.5px; }
+  .brand-sub { font-size: 11px; color: var(--muted); margin-top: 4px; font-weight: 700; letter-spacing: -0.1px; }
+  .top-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .icon-btn {
+    border: 1px solid var(--border); background: #fff; border-radius: 999px;
+    height: 34px; min-width: 34px; padding: 0 10px; font-size: 12.5px; font-weight: 800;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    cursor: pointer; color: var(--text); font-family: inherit;
+  }
+  .icon-btn:active { background: #F2F8F5; }
+
+  .search-box { display: none; margin-bottom: 10px; }
+  .search-box.open { display: block; }
+  .search-input {
+    width: 100%; padding: 11px 14px; border-radius: 14px;
+    border: 1.5px solid var(--border); background: #fff; font-size: 14px; outline: none;
+    font-family: inherit; color: var(--text);
+  }
+  .search-input:focus { border-color: var(--mint); }
+
+  /* ---------- filters ---------- */
+  .pills { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .pills::-webkit-scrollbar { display: none; }
+  .pill {
+    flex: 0 0 auto; border: 1px solid var(--border); background: #fff;
+    border-radius: 999px; padding: 8px 12px; font-size: 12.5px; font-weight: 800;
+    color: var(--text); cursor: pointer; white-space: nowrap; font-family: inherit;
+    transition: background .15s, color .15s;
+  }
+  .pill .n { font-variant-numeric: tabular-nums; opacity: .55; font-weight: 800; margin-left: 2px; }
+  .pill.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .pill.active .n { opacity: .7; }
+
+  .grades { display: flex; gap: 5px; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+  .grades::-webkit-scrollbar { display: none; }
+  .gchip {
+    flex: 0 0 auto; border: 1px solid transparent; background: var(--bg2);
+    border-radius: 9px; padding: 5px 9px; font-size: 11.5px; font-weight: 800;
+    color: #5C6E64; cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  .gchip.active { background: #D8F7EA; border-color: #9BE8CE; color: #0A7D5C; }
+
+  /* ---------- progress ---------- */
+  .progress-wrap { margin-bottom: 13px; }
+  .progress-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .progress-label { font-size: 11.5px; font-weight: 800; color: var(--muted); }
+  .progress-num { font-size: 11.5px; font-weight: 900; color: var(--text); font-variant-numeric: tabular-nums; }
+  .progress-bar { height: 8px; border-radius: 999px; background: #E3EFE8; overflow: hidden; }
+  .progress-fill {
+    height: 100%; width: 0%; border-radius: 999px;
+    background: linear-gradient(90deg, #3DDC97, #12B886 55%, #FFC94D);
+    transition: width 0.35s ease;
+  }
+
+  /* ---------- section head ---------- */
+  .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+  .section-title { font-size: 17.5px; font-weight: 900; letter-spacing: -0.45px; }
+  .section-desc { font-size: 11.5px; color: var(--muted); margin-top: 3px; font-weight: 700; }
+  .action-row { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-shuffle, .btn-pick {
+    border-radius: 12px; padding: 9px 11px; font-size: 12px; font-weight: 900;
+    cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  .btn-shuffle { border: 1px solid var(--border); background: #fff; color: var(--text); }
+  .btn-pick {
+    border: none; background: linear-gradient(135deg, #FFE066, #FFC94D); color: #4A3400;
+    box-shadow: 0 3px 9px rgba(255,201,77,0.42);
+  }
+
+  /* ---------- card grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+    overflow: hidden; cursor: pointer; box-shadow: var(--shadow);
+    transition: transform 0.12s ease; position: relative; display: flex; flex-direction: column;
+  }
+  .card:active { transform: scale(0.975); }
+  .cover {
+    position: relative; aspect-ratio: 16 / 9; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cover-fallback {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 28px; opacity: 0.92;
+  }
+  .cover-img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; object-position: center; display: block;
+    transition: opacity 0.2s ease;
+  }
+  .cover-img.hide { opacity: 0; }
+  .cover-avatar {
+    position: absolute; width: 52px; height: 52px; border-radius: 50%;
+    border: 2.5px solid rgba(255,255,255,0.92); object-fit: cover;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.18);
+  }
+  .cover-shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.06) 40%, rgba(0,0,0,0) 58%, rgba(0,0,0,0.22) 100%);
+  }
+  .badges { position: absolute; top: 7px; left: 7px; right: 7px; display: flex; align-items: center; gap: 4px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; white-space: nowrap;
+    font-size: 9px; font-weight: 900; letter-spacing: 0.1px;
+    padding: 4px 6px; border-radius: 999px; color: #fff; line-height: 1;
+  }
+  .chip-grade { background: rgba(20,32,26,0.86); box-shadow: 0 1px 4px rgba(0,0,0,0.22); }
+  .chip-src { background: rgba(255,255,255,0.94); color: #2B3B33; box-shadow: 0 1px 4px rgba(0,0,0,0.14); }
+  .chip-done { margin-left: auto; background: #10B981; box-shadow: 0 2px 6px rgba(16,185,129,0.45); }
+  .chip-fix { margin-left: auto; background: #F9813A; box-shadow: 0 2px 6px rgba(249,129,58,0.4); }
+  .cover-num {
+    position: absolute; bottom: 6px; left: 7px; font-size: 9.5px; font-weight: 900;
+    color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.5); letter-spacing: 0.3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cover-count {
+    position: absolute; bottom: 5px; right: 6px; font-size: 9px; font-weight: 900;
+    color: #fff; background: rgba(20,32,26,0.62); padding: 3px 6px; border-radius: 999px;
+    letter-spacing: 0.1px; white-space: nowrap;
+  }
+  .play-orb {
+    position: absolute; width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.95); color: #16241D;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; padding-left: 2px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.26);
+  }
+  .card-body { padding: 9px 11px 10px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 7px; }
+  .card-title { font-size: 13px; font-weight: 900; line-height: 1.25; letter-spacing: -0.3px; }
+  .card-desc {
+    font-size: 11px; color: var(--muted); margin-top: 3px; font-weight: 700; line-height: 1.36;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-foot { display: flex; align-items: center; justify-content: space-between; }
+  .card-cat { font-size: 10px; font-weight: 900; letter-spacing: -0.1px; }
+  .stamp-btn {
+    border: 1px solid var(--border); background: #F6FBF8; border-radius: 999px;
+    padding: 4px 8px; font-size: 10.5px; font-weight: 900; cursor: pointer; color: #6B7C73;
+    font-family: inherit;
+  }
+  .card.done .stamp-btn { background: #E4FAF1; color: #0A8A64; border-color: #B8EEDC; }
+  .card.done .play-orb { background: rgba(255,255,255,0.8); color: #0A8A64; }
+
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 44px 10px; line-height: 1.7; }
+  .footer-note { text-align: center; font-size: 11px; color: var(--muted); margin: 22px 0 0; line-height: 1.7; }
+  .footer-note b { color: #2B3B33; }
+
+  /* ---------- modal ---------- */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(12,32,24,0.42);
+    align-items: center; justify-content: center; padding: 20px; z-index: 60;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: #fff; border-radius: 20px; padding: 20px; width: 100%; max-width: 360px; box-shadow: 0 12px 30px rgba(0,0,0,0.2); }
+  .modal h3 { margin: 0 0 8px; font-size: 18px; font-weight: 900; letter-spacing: -0.4px; }
+  .modal p { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+  .modal p b { color: var(--text); }
+  .modal-btn {
+    width: 100%; padding: 11px; border-radius: 12px; border: none; background: var(--ink);
+    color: #fff; font-weight: 800; font-size: 14px; cursor: pointer; margin-top: 8px; font-family: inherit;
+  }
+  .modal-btn.secondary { background: #EEF5F1; color: var(--text); }
+  .stat-row { display: flex; gap: 6px; margin: 12px 0 14px; }
+  .stat {
+    flex: 1; background: #F5FBF8; border: 1px solid var(--border); border-radius: 13px;
+    padding: 10px 8px; text-align: center;
+  }
+  .stat .v { font-size: 18px; font-weight: 900; color: #0A8A64; font-variant-numeric: tabular-nums; }
+  .stat .k { font-size: 10.5px; font-weight: 800; color: var(--muted); margin-top: 2px; }
+
+  /* ---------- player ---------- */
+  .player-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 80;
+    background: rgba(8,20,15,0.66); backdrop-filter: blur(3px);
+    align-items: flex-end; justify-content: center;
+  }
+  .player-backdrop.open { display: flex; }
+  .player {
+    width: 100%; max-width: 520px; background: #10201A; color: #fff;
+    border-radius: 22px 22px 0 0; padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.45);
+    animation: rise 0.22s ease; max-height: 96vh; overflow-y: auto;
+  }
+  @keyframes rise { from { transform: translateY(18px); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
+  .player-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .player-eyebrow { font-size: 10px; font-weight: 900; letter-spacing: 0.7px; color: #8FBFAA; }
+  .player-title { font-size: 17.5px; font-weight: 900; margin-top: 3px; line-height: 1.22; letter-spacing: -0.4px; }
+  .player-sub { font-size: 11.5px; color: #A9BFB5; margin-top: 4px; font-weight: 700; }
+  .player-close {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.12); color: #fff; font-size: 15px; cursor: pointer; font-family: inherit;
+  }
+  .player-note {
+    font-size: 11px; line-height: 1.55; color: #FFE08A; background: rgba(255,201,77,0.12);
+    border-radius: 10px; padding: 8px 10px; margin-bottom: 9px; font-weight: 700;
+  }
+  .player-note[hidden] { display: none; }
+  .variants { display: flex; gap: 6px; margin-bottom: 9px; flex-wrap: wrap; }
+  .variant {
+    border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #DDF3EA;
+    border-radius: 999px; padding: 6px 12px; font-size: 11.5px; font-weight: 900;
+    cursor: pointer; font-family: inherit;
+  }
+  .variant.active { background: #12B886; border-color: #12B886; color: #fff; }
+  .player-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; overflow: hidden; }
+  .player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .player-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .p-btn {
+    flex: 1; text-align: center; border-radius: 12px; padding: 11px 8px; font-size: 12.5px;
+    font-weight: 900; cursor: pointer; text-decoration: none; display: inline-flex;
+    align-items: center; justify-content: center; gap: 4px; font-family: inherit; border: none;
+  }
+  .p-btn.ghost { background: rgba(255,255,255,0.13); color: #fff; }
+  .p-btn.done { background: #12B886; color: #fff; }
+  .p-btn.done.on { background: rgba(18,184,134,0.18); color: #6FE3BC; box-shadow: inset 0 0 0 1px rgba(111,227,188,0.5); }
+  .player-nav { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+  .p-nav {
+    border: 1px solid rgba(255,255,255,0.16); background: transparent; color: #fff;
+    border-radius: 12px; padding: 10px 12px; font-size: 12px; font-weight: 900; cursor: pointer;
+    font-family: inherit; white-space: nowrap;
+  }
+  .p-nav.next { background: rgba(255,255,255,0.92); color: #10201A; border-color: transparent; flex: 1; }
+  .p-nav:disabled { opacity: 0.32; }
+  .p-count { flex: 0 0 auto; font-size: 11px; color: #A9BFB5; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 12px);
+    background: rgba(16,32,26,0.94); color: #fff; font-size: 12.5px; font-weight: 800;
+    padding: 11px 16px; border-radius: 999px; opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s; z-index: 100; max-width: 86vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <div class="brand">
+      <div class="app-icon">31</div>
+      <div>
+        <div class="brand-title">교과서 연계 31선</div>
+        <div class="brand-sub">초등 3~6학년 · 사회·과학·역사·한자</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="searchToggle" aria-label="검색">🔍</button>
+      <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
+    </div>
+  </div>
+
+  <div class="search-box" id="searchBox">
+    <input type="text" class="search-input" id="searchInput" placeholder="단원·키워드 검색 (예: 지층, 조선, 사자성어)" />
+  </div>
+
+  <div class="pills" id="pills"></div>
+  <div class="grades" id="grades"></div>
+
+  <div class="progress-wrap">
+    <div class="progress-top">
+      <span class="progress-label" id="progressLabel">오늘은 한 편씩 📺</span>
+      <span class="progress-num"><span id="progressDone">0</span> / 31편</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="section-head">
+    <div>
+      <div class="section-title" id="sectionTitle">전체 31선</div>
+      <div class="section-desc" id="sectionDesc">카드를 누르면 앱 안에서 바로 재생돼요</div>
+    </div>
+    <div class="action-row">
+      <button class="btn-shuffle" id="shuffleBtn">🔀 섞기</button>
+      <button class="btn-pick" id="pickBtn">🎲 추천</button>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <p class="footer-note">
+    <b>바빠맘</b> | @busy_m.o.m · 출판사·공식 채널 영상 연계<br />
+    완주 표시는 이 폰에만 저장돼요
+  </p>
+</div>
+
+<!-- 설정 -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h3>⚙️ 학습 설정</h3>
+    <div class="stat-row">
+      <div class="stat"><div class="v" id="statDone">0</div><div class="k">완주한 편</div></div>
+      <div class="stat"><div class="v" id="statLeft">31</div><div class="k">남은 편</div></div>
+      <div class="stat"><div class="v" id="statPct">0%</div><div class="k">진행률</div></div>
+    </div>
+    <p>📚 <b>교과 개념</b>은 진도에 맞춰 3분 클립으로, <b>역사·한자</b>는 배경지식용으로 한 편씩.</p>
+    <p>💡 폰 브라우저 메뉴에서 <b>'홈 화면에 추가'</b>를 누르면 앱처럼 바로 열려요.<br />💡 완주 표시는 이 폰에만 저장돼요.</p>
+    <button class="modal-btn secondary" id="resetBtn">완주 기록 초기화</button>
+    <button class="modal-btn" id="closeModalBtn">닫기</button>
+  </div>
+</div>
+
+<!-- 인앱 플레이어 -->
+<div class="player-backdrop" id="playerBackdrop">
+  <div class="player" role="dialog" aria-modal="true" aria-labelledby="playerTitle">
+    <div class="player-head">
+      <div>
+        <div class="player-eyebrow" id="playerEyebrow">#01 · 사회</div>
+        <div class="player-title" id="playerTitle">—</div>
+        <div class="player-sub" id="playerSub">—</div>
+      </div>
+      <button class="player-close" id="playerClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="player-note" id="playerNote" hidden></div>
+    <div class="variants" id="variants" hidden></div>
+    <div class="player-frame" id="playerFrame"></div>
+    <div class="player-actions">
+      <a class="p-btn ghost" id="openYt" href="#" target="_blank" rel="noopener">유튜브에서 보기</a>
+      <button class="p-btn done" id="playerDoneBtn">✓ 완주 체크</button>
+    </div>
+    <div class="player-nav">
+      <button class="p-nav" id="prevBtn">◀ 이전</button>
+      <span class="p-count" id="playerCount">1 / 31</span>
+      <button class="p-nav next" id="nextBtn">다음 ▶</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DATA = {"items":[{"num":1,"cat":"social","grade":"3-1","grades":[3],"source":"미래엔","title":"미래엔 3-1 사회 차시별 개념","desc":"지도·우리 고장·옛이야기를 3분 애니로","kind":"playlist","pid":"PLTLKL6ThErVL4BeM0j16P4CzA__OMht3W","vid":"gxke6kgknms","count":"24편","tags":"지도 우리고장 옛이야기 3학년 1학기","id":1,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/gxke6kgknms/hqdefault.jpg"},{"num":2,"cat":"social","grade":"3-2","grades":[3],"source":"미래엔","title":"미래엔 3-2 사회 차시별 개념","desc":"환경과 생활, 교통·통신 발달의 변화","kind":"playlist","pid":"PLTLKL6ThErVIjACuoEotweVLujIJiToVy","vid":"F6zUVJweNdU","count":"23편","tags":"환경 생활 교통 통신 옛날 오늘날 3학년 2학기","id":2,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/F6zUVJweNdU/hqdefault.jpg"},{"num":3,"cat":"social","grade":"3학년","grades":[3],"source":"클래스로그","title":"클래스로그 3학년 사회 전단원","desc":"풍부한 사진·자료로 단원 총정리","kind":"playlist","pid":"PLjvzCZdbm_z1Yft0K4K-Fm-aIQceGCU82","vid":"Ik3y6Nxbv4Q","count":"24편","tags":"고장 환경 생활 모습 옛 도구 3학년","id":3,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/Ik3y6Nxbv4Q/hqdefault.jpg"},{"num":4,"cat":"social","grade":"4-1","grades":[4],"source":"미래엔","title":"미래엔 4-1 사회 차시별 개념","desc":"지도 읽기부터 서술형 수행평가 대비까지","kind":"playlist","pid":"PLTLKL6ThErVIfJGvnwQzRTJZSDi1NcqFR","vid":"TM4Ht2CaxAk","count":"28편","tags":"지역 위치 공공기관 축제 4학년 1학기 수행평가","id":4,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/TM4Ht2CaxAk/hqdefault.jpg"},{"num":5,"cat":"social","grade":"4-2","grades":[4],"source":"미래엔","title":"미래엔 4-2 사회 차시별 개념","desc":"촌락과 도시, 생산과 소비·시장 경제","kind":"playlist","pid":"PLTLKL6ThErVKjtyhQ8oGEtyCFtd4qwtNM","vid":"y32ro6gViiQ","count":"28편","tags":"촌락 도시 생산 소비 시장경제 4학년 2학기","id":5,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/y32ro6gViiQ/hqdefault.jpg"},{"num":6,"cat":"social","grade":"5학년","grades":[5],"source":"클래스로그","title":"클래스로그 5학년 사회 전단원","desc":"단원평가 필수 출제 포인트만 골라서","kind":"playlist","pid":"PLjvzCZdbm_z26M8AhCFOgrlG2i8BkkBLy","vid":"Phd_50Gdlv8","count":"57편","tags":"국토 지리 인권 헌법 법 5학년 단원평가","id":6,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/Phd_50Gdlv8/hqdefault.jpg"},{"num":7,"cat":"social","grade":"6학년","grades":[6],"source":"클래스로그","title":"클래스로그 6학년 사회 전단원","desc":"민주화 과정과 시사 상식 완벽 대비","kind":"playlist","pid":"PLjvzCZdbm_z111EGb-R_nUJcW9Bh6d4wR","vid":"U7BuhldCgC4","count":"38편","tags":"정치 발전 글로벌 무역 경제 민주화 6학년","id":7,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/U7BuhldCgC4/hqdefault.jpg"},{"num":8,"cat":"science","grade":"3-1","grades":[3],"source":"미래엔","title":"미래엔 3-1 과학 차시별 개념","desc":"배추흰나비 관찰과 교과서 실험 해설","kind":"playlist","pid":"PLTLKL6ThErVLDAuIP0TA-cr_VoaBsd6am","vid":"JZGtNO2_Xc4","count":"21편","tags":"물질 성질 동물 한살이 배추흰나비 3학년 1학기","id":8,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/JZGtNO2_Xc4/hqdefault.jpg"},{"num":9,"cat":"science","grade":"3학년","grades":[3],"source":"클래스로그","title":"클래스로그 3학년 과학 전단원","desc":"3분 실사 클립으로 실험 예습·복습","kind":"playlist","pid":"PLjvzCZdbm_z1g7DG7cpcZYeWJEc3ASFSs","vid":"pKfKq0lHJAQ","count":"41편","tags":"물체 물질 자석 지구 달 3학년 실험","id":9,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/pKfKq0lHJAQ/hqdefault.jpg"},{"num":10,"cat":"science","grade":"4-1","grades":[4],"source":"미래엔","title":"미래엔 4-1 과학 차시별 개념","desc":"지층의 원리와 강낭콩 싹 틔우기 탐구","kind":"playlist","pid":"PLTLKL6ThErVIkelqg0AfPh7QcoWsqL9TS","vid":"Oc2pRuc3dfI","count":"9편","tags":"지층 화석 식물 한살이 강낭콩 4학년 1학기","id":10,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/Oc2pRuc3dfI/hqdefault.jpg"},{"num":11,"cat":"science","grade":"4학년","grades":[4],"source":"클래스로그","title":"클래스로그 4학년 과학 전단원","desc":"화산·지진부터 그림자까지 차시별 정리","kind":"playlist","pid":"PLjvzCZdbm_z1bqpkwbnGRADX1pRgjYN04","vid":"ZCzd_YdPMBM","count":"47편","tags":"화산 지진 물의 여행 그림자 4학년","id":11,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/ZCzd_YdPMBM/hqdefault.jpg"},{"num":12,"cat":"science","grade":"5-1","grades":[5],"source":"미래엔","title":"미래엔 5-1 과학 차시별 개념","desc":"고학년 물리·화학 기초 다지기","kind":"playlist","pid":"PLTLKL6ThErVIgogwUxsEmOWHt08OKYpUW","vid":"WtQXeCXmAjQ","count":"19편","tags":"온도 열 태양계 별 용해 5학년 1학기","id":12,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/WtQXeCXmAjQ/hqdefault.jpg"},{"num":13,"cat":"science","grade":"5학년","grades":[5],"source":"클래스로그","title":"클래스로그 5학년 과학 전단원","desc":"리트머스 실험과 소화·순환계 입체 학습","kind":"playlist","pid":"PLjvzCZdbm_z1NF7JFqTbRJBskS19xbSNs","vid":"7TtFDG5cg_4","count":"44편","tags":"생태계 환경 산 염기 인체 소화 순환 5학년","id":13,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/7TtFDG5cg_4/hqdefault.jpg"},{"num":14,"cat":"science","grade":"6-1","grades":[6],"source":"미래엔","title":"미래엔 6-1 과학 차시별 개념","desc":"중등 과학으로 이어지는 핵심 개념","kind":"playlist","pid":"PLTLKL6ThErVJOyEfITDca7WMnkjwBo4UR","vid":"B3duu-lIHu4","count":"17편","tags":"지구 달 빛 렌즈 식물 구조 6학년 1학기","id":14,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/B3duu-lIHu4/hqdefault.jpg"},{"num":15,"cat":"science","grade":"6학년","grades":[6],"source":"클래스로그","title":"클래스로그 6학년 과학 전단원","desc":"6학년 최고 난이도 단원 완벽 마스터","kind":"playlist","pid":"PLjvzCZdbm_z2khxtXoTlpo2IJvE1uiwqI","vid":"lMgVwMMUFN4","count":"34편","tags":"전기 계절 변화 연소 6학년 난이도","id":15,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/lMgVwMMUFN4/hqdefault.jpg"},{"num":16,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"클래스로그","title":"클래스로그 역사 사전","desc":"고조선부터 대한민국까지 인물·사건 흐름","kind":"playlist","pid":"PLjvzCZdbm_z0GcXJFlz2TSkJWofLGqr0W","vid":"yM7WAG1L5-w","count":"147편","tags":"한국사 역사사전 고조선 대한민국 인물 사건 테마","id":16,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/yM7WAG1L5-w/hqdefault.jpg"},{"num":17,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"EBS","title":"EBS 스토리 한국사","desc":"EBS 교재 연계 영상으로 전체 흐름 정리","kind":"playlist","pid":"PL_gpLf9VtGfBtQ0Vg4ezDhCteGORANX1R","vid":"iK2e2OQP2Co","count":"7편","tags":"EBS 스토리 한국사 교재 연계 로드맵","id":17,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/iK2e2OQP2Co/hqdefault.jpg"},{"num":18,"cat":"history","grade":"4~6","grades":[4,5,6],"source":"최태성 초등TV","title":"큰별쌤 초등 한국사 개념","desc":"초등 한능검 대비 판서·통강 개념 강의","kind":"playlist","pid":"PLp9pLtKPJuPaFA_yjPFFa60fTqJeffzc0","vid":"bJ0LDaYT7Tw","count":"22편","note":"원래 연결된 KBS키즈 재생목록이 삭제되어, 큰별쌤(최태성)의 초등 한국사 개념 재생목록으로 연결했어요.","tags":"큰별쌤 최태성 KBS키즈 초등 한국사 한능검 판서 통강","id":18,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/bJ0LDaYT7Tw/hqdefault.jpg"},{"num":19,"cat":"history","grade":"4~6","grades":[4,5,6],"source":"최태성 초등TV","title":"최태성 초등TV 채널","desc":"초등 눈높이 한국사·한능검 영상 모음","kind":"channel","vid":"QxnOzn5FXTY","url":"https://www.youtube.com/@최태성초등TV/videos","avatar":"https://yt3.googleusercontent.com/idBsQqcgejdk0XRxgPy9g5k-JifCtHrcCQqr6-UADTw8LRi4mlRjTIxDMTwdsEllfhFzW4gtQAc=s176-c-k-c0x00ffffff-no-rj","note":"채널 카드예요. 인앱에서는 최신 영상이 재생되고, 채널 전체는 아래 버튼에서 볼 수 있어요.","tags":"최태성 초등TV 채널 한능검 4학년 5학년 6학년","id":19,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/QxnOzn5FXTY/hqdefault.jpg"},{"num":20,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"지니스쿨","title":"지니키즈 역사 채널","desc":"애니메이션으로 인물과 사건 흐름 파악","kind":"channel","vid":"RPMqTXCtlDo","url":"https://www.youtube.com/@geni_history","avatar":"https://yt3.googleusercontent.com/ytc/AIdro_kZz4gcXFGhdi9glyffWVM94lS1RkDWN7YsFdw8JBAzXg=s176-c-k-c0x00ffffff-no-rj","note":"채널 카드예요. 인앱에서는 최신 영상이 재생되고, 채널 전체는 아래 버튼에서 볼 수 있어요.","tags":"지니키즈 지니스쿨 역사 애니메이션 입문","id":20,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/RPMqTXCtlDo/hqdefault.jpg"},{"num":21,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"최태성 유아TV","title":"어린이 조선왕조실록","desc":"조선 왕과 사건을 이야기로 쉽게","kind":"playlist","pid":"PLiDxa1RAwEQtrtYDluSgc6pzqnJ1uLwOs","vid":"9sAfTrqpOiE","count":"32편","tags":"조선시대 조선왕조실록 왕 인물 한국사","id":21,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/9sAfTrqpOiE/hqdefault.jpg"},{"num":22,"cat":"history","grade":"3~4","grades":[3,4,5,6],"source":"최태성 유아TV","title":"처음 만나는 삼국유사","desc":"삼국유사 속 이야기를 만화로 재밌게","kind":"playlist","pid":"PLiDxa1RAwEQuVGIFotbLSdk2jmWHWB_33","vid":"LGAgP0n85OU","count":"30편","tags":"고대사 삼국유사 삼국시대 설화 만화","id":22,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/LGAgP0n85OU/hqdefault.jpg"},{"num":23,"cat":"history","grade":"3~6","grades":[3,4,5,6],"source":"EBS 키즈","title":"시간을 달리는 세계사","desc":"시간여행 콘셉트로 세계사 결정적 순간","kind":"playlist","pid":"PLKDPDirFfxZS8L33EQ0-_RHzlNzzFFDwA","vid":"FZv8uaKRuNU","count":"28편","tags":"세계사 세계문명 EBS놀이터 시간여행","id":23,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/FZv8uaKRuNU/hqdefault.jpg"},{"num":24,"cat":"history","grade":"2~6","grades":[3,4,5,6],"source":"지니스쿨","title":"이야기 세계사 World History","desc":"애니메이션 스토리로 세계사 배경지식 확장","kind":"playlist","pid":"PL9963YeJsUgDAGSByOa7FkOun6yjK1YjF","vid":"sP99_97-mXU","count":"31편","tags":"세계사 고대 근현대 애니메이션 지니스쿨","id":24,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/sP99_97-mXU/hqdefault.jpg"},{"num":25,"cat":"hanja","grade":"전학년","grades":[3,4,5,6],"source":"우리들의 초등학교","title":"5분 한자 시리즈","desc":"5분 컷으로 한자 원리부터 어휘 확장","kind":"playlist","pid":"PL6ZqXU6Jpq32zhgUmfv9DzbpZetHTuoAz","vid":"xlWbrdEhcvw","count":"25편","tags":"5분한자 한자 원리 획순 낱말 어휘","id":25,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/xlWbrdEhcvw/hqdefault.jpg"},{"num":26,"cat":"hanja","grade":"3~4","grades":[3,4,5,6],"source":"반디랑블록한자","title":"하루 10분 반디랑 블록한자","desc":"블록처럼 결합하는 한자 원리 10분 루틴","kind":"playlist","pid":"PLrzJCABisjuNDGaO3Zlz5cPlOYrIEqcHm","vid":"vNbSegazMUc","count":"30편","tags":"블록한자 반디랑 10분 복습 한자 원리","id":26,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/vNbSegazMUc/hqdefault.jpg"},{"num":27,"cat":"hanja","grade":"전학년","grades":[3,4,5,6],"source":"홍선생미술","title":"한자 좋아좋아 (동요)","desc":"노래로 훈음이 저절로 붙는 한자 동요","kind":"playlist","pid":"PLmUqRfwjACrbW25371IqH-dygBSCzyaNd","vid":"OGyQQ5drGgU","count":"26편","note":"원래 연결된 '동요로 외우는 한자' 재생목록이 삭제되어, 같은 홍선생미술 채널의 '한자 좋아좋아'로 연결했어요.","tags":"홍선생미술 한자동요 8급 4급 급수 노래 훈음","id":27,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/OGyQQ5drGgU/hqdefault.jpg"},{"num":28,"cat":"hanja","grade":"전학년","grades":[3,4,5,6],"source":"신비한자","title":"신비한자 급수별 챈트","desc":"8급부터 급수별로 노래·챈트 반복","kind":"playlist","pid":"PLIbkNhctSDWHX2QD4A1BV0pVfHuj0_ow8","vid":"-b_KTEva-LE","count":"8편","variants":[{"label":"8급","kind":"playlist","id":"PLIbkNhctSDWHX2QD4A1BV0pVfHuj0_ow8","vid":"-b_KTEva-LE","count":"8편"},{"label":"7급","kind":"playlist","id":"PLIbkNhctSDWFJ2gOGRWoRKXGDfXyxp_pr","vid":"gTpebJlVOrc","count":"8편"},{"label":"6급","kind":"playlist","id":"PLIbkNhctSDWF6LQjchLxzDNqg0nWfJTfQ","vid":"7DEX3vb7vNo","count":"8편"}],"note":"5급 재생목록은 원래 링크가 삭제되어 지금은 8·7·6급까지 볼 수 있어요.","tags":"신비한자 챈트 8급 7급 6급 5급 급수 한자","id":28,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/-b_KTEva-LE/hqdefault.jpg"},{"num":29,"cat":"hanja","grade":"3~4","grades":[3,4,5,6],"source":"주니토니","title":"주니토니 8급·7급 한자동요","desc":"캐릭터 동요로 첫 한자를 즐겁게","kind":"video","vid":"bmucw9XFFWg","count":"동요 2편","variants":[{"label":"8급","kind":"video","id":"bmucw9XFFWg","vid":"bmucw9XFFWg","count":"동요"},{"label":"7급","kind":"video","id":"qk6ofM_wwB0","vid":"qk6ofM_wwB0","count":"동요"}],"tags":"주니토니 한자동요 8급 7급 키즈캐슬","id":29,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/bmucw9XFFWg/hqdefault.jpg"},{"num":30,"cat":"hanja","grade":"2~6","grades":[3,4,5,6],"source":"EBS Learning","title":"천하무적 한자 900","desc":"상형 원리와 실사·애니로 어휘력 강화","kind":"playlist","pid":"PLQvhoNAcU3iFwkmjJ1qKfU0heiMg3i88W","vid":"r0Z2U2LNIJA","count":"60편","tags":"EBS 천하무적 한자 900 교육부 기초한자 상형","id":30,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/r0Z2U2LNIJA/hqdefault.jpg"},{"num":31,"cat":"hanja","grade":"3~6","grades":[3,4,5,6],"source":"한글어휘","title":"초등 사자성어 100개 모음","desc":"비문학·사회 지문에 꼭 나오는 필수 성어","kind":"playlist","pid":"PLJVNgCEQC0prcW6zg3Guu9Ic8HZBWt1HM","vid":"yt3hGlZuZYQ","count":"11편","tags":"사자성어 성어 국어 독해 비문학 어휘","id":31,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/yt3hGlZuZYQ/hqdefault.jpg"}],"cats":{"social":{"name":"사회","long":"초등 사회","emoji":"🗺️","c1":"#3DDC97","c2":"#12B886","ink":"#0B7A5A","soft":"#E7FBF3"},"science":{"name":"과학","long":"초등 과학","emoji":"🔬","c1":"#5AC8FA","c2":"#4F7CF7","ink":"#2B4FCB","soft":"#EAF2FF"},"history":{"name":"역사","long":"한국사·세계사","emoji":"📜","c1":"#FFC94D","c2":"#F97E45","ink":"#B4511B","soft":"#FFF3E4"},"hanja":{"name":"한자","long":"한자·사자성어","emoji":"🀄","c1":"#C79BFF","c2":"#8B5CF6","ink":"#5B33C4","soft":"#F3EDFF"}}};
+const ITEMS = DATA.items;
+const CATS = DATA.cats;
+const KEY = 'guide31_done_v1';
+
+let currentFilter = 'all';
+let currentGrade = 'all';
+let searchQuery = '';
+let orderItems = [...ITEMS];
+let doneSet = new Set();
+try { doneSet = new Set((JSON.parse(localStorage.getItem(KEY) || '[]') || []).map(Number)); } catch (e) { doneSet = new Set(); }
+
+const grid = document.getElementById('grid');
+const sectionTitle = document.getElementById('sectionTitle');
+const sectionDesc = document.getElementById('sectionDesc');
+const progressDone = document.getElementById('progressDone');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+
+function catCount(c) { return ITEMS.filter(i => i.cat === c).length; }
+
+function buildPills() {
+  const pills = [
+    { k: 'all', label: '전체', n: ITEMS.length },
+    { k: 'social', label: '🗺️ 사회', n: catCount('social') },
+    { k: 'science', label: '🔬 과학', n: catCount('science') },
+    { k: 'history', label: '📜 역사', n: catCount('history') },
+    { k: 'hanja', label: '🀄 한자', n: catCount('hanja') },
+    { k: 'done', label: '⭐ 완주', n: doneSet.size }
+  ];
+  document.getElementById('pills').innerHTML = pills.map(p =>
+    `<button class="pill ${p.k === currentFilter ? 'active' : ''}" data-filter="${p.k}">${p.label}<span class="n">${p.n}</span></button>`
+  ).join('');
+}
+
+function buildGrades() {
+  const gs = [{k:'all',l:'전체 학년'},{k:'3',l:'3학년'},{k:'4',l:'4학년'},{k:'5',l:'5학년'},{k:'6',l:'6학년'}];
+  document.getElementById('grades').innerHTML = gs.map(g =>
+    `<button class="gchip ${g.k === currentGrade ? 'active' : ''}" data-grade="${g.k}">${g.l}</button>`
+  ).join('');
+}
+
+function saveDone() {
+  try { localStorage.setItem(KEY, JSON.stringify([...doneSet])); } catch (e) {}
+  const pct = doneSet.size / ITEMS.length * 100;
+  progressDone.textContent = doneSet.size;
+  progressFill.style.width = pct.toFixed(1) + '%';
+  progressLabel.textContent = doneSet.size === 0 ? '오늘은 한 편씩 📺'
+    : doneSet.size === ITEMS.length ? '31선 완주! 🏆' : `잘하고 있어요 · ${Math.round(pct)}%`;
+  document.getElementById('statDone').textContent = doneSet.size;
+  document.getElementById('statLeft').textContent = ITEMS.length - doneSet.size;
+  document.getElementById('statPct').textContent = Math.round(pct) + '%';
+}
+
+function getFiltered() {
+  return orderItems.filter(it => {
+    if (currentFilter === 'social' || currentFilter === 'science' || currentFilter === 'history' || currentFilter === 'hanja') {
+      if (it.cat !== currentFilter) return false;
+    }
+    if (currentFilter === 'done' && !doneSet.has(it.id)) return false;
+    if (currentGrade !== 'all' && !it.grades.includes(Number(currentGrade))) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const hay = (it.title + ' ' + it.desc + ' ' + (it.tags || '') + ' ' + it.source + ' ' + it.grade + ' ' + it.catLong).toLowerCase();
+      return hay.includes(q);
+    }
+    return true;
+  });
+}
+
+function cardHTML(it) {
+  const c = CATS[it.cat];
+  const isDone = doneSet.has(it.id);
+  const num = '#' + String(it.num).padStart(2, '0');
+  const isChannel = it.kind === 'channel';
+  const media = isChannel
+    ? `<img class="cover-avatar" src="${it.avatar}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'" />`
+    : `<img class="cover-img" src="${it.thumb}" alt="" loading="lazy" decoding="async" onerror="this.classList.add('hide')" />`;
+  const topBadge = isDone
+    ? '<span class="chip chip-done">✓ 완주</span>'
+    : (it.note ? '<span class="chip chip-fix">링크 점검</span>' : '');
+  return `
+    <div class="card ${isDone ? 'done' : ''}" data-id="${it.id}">
+      <div class="cover" style="background: linear-gradient(135deg, ${c.c1}, ${c.c2});">
+        <div class="cover-fallback">${c.emoji}</div>
+        ${media}
+        <div class="cover-shade"></div>
+        <div class="badges">
+          <span class="chip chip-grade">${it.grade}</span>
+          <span class="chip chip-src">${it.source}</span>
+          ${topBadge}
+        </div>
+        ${isChannel ? '<div class="play-orb">▶</div>' : '<div class="play-orb">▶</div>'}
+        <span class="cover-num">${num}</span>
+        <span class="cover-count">${isChannel ? '채널' : it.count}</span>
+      </div>
+      <div class="card-body">
+        <div>
+          <div class="card-title">${it.title}</div>
+          <div class="card-desc">${it.desc}</div>
+        </div>
+        <div class="card-foot">
+          <span class="card-cat" style="color:${c.ink}">${c.emoji} ${c.name}</span>
+          <button class="stamp-btn" data-stamp="${it.id}">${isDone ? '✓ 완주' : '체크'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function render() {
+  const list = getFiltered();
+  const titles = {
+    all: `전체 ${ITEMS.length}선`,
+    social: `🗺️ 초등 사회 ${list.length}선`,
+    science: `🔬 초등 과학 ${list.length}선`,
+    history: `📜 한국사·세계사 ${list.length}선`,
+    hanja: `🀄 한자·사자성어 ${list.length}선`,
+    done: `⭐ 완주한 ${list.length}선`
+  };
+  sectionTitle.textContent = titles[currentFilter] || `전체 ${ITEMS.length}선`;
+  sectionDesc.textContent = list.length ? '카드를 누르면 앱 안에서 바로 재생돼요' : '조건에 맞는 항목이 없어요';
+  document.getElementById('pickBtn').disabled = list.length === 0;
+  document.getElementById('pickBtn').style.opacity = list.length ? '1' : '.45';
+  grid.innerHTML = list.length
+    ? list.map(cardHTML).join('')
+    : '<div class="empty">해당하는 항목이 없어요.<br />다른 검색어나 필터를 눌러보세요.</div>';
+}
+
+function toggleDone(id) {
+  if (doneSet.has(id)) doneSet.delete(id); else doneSet.add(id);
+  saveDone();
+  buildPills();
+  render();
+  if (player.open) syncDoneBtn();
+}
+
+/* ---------------- in-app player ---------------- */
+const player = { open: false, playlist: [], index: 0, variant: 0 };
+const backdrop = document.getElementById('playerBackdrop');
+const frameEl = document.getElementById('playerFrame');
+const eyebrowEl = document.getElementById('playerEyebrow');
+const pTitle = document.getElementById('playerTitle');
+const pSub = document.getElementById('playerSub');
+const pNote = document.getElementById('playerNote');
+const variantsEl = document.getElementById('variants');
+const openYt = document.getElementById('openYt');
+const doneBtn = document.getElementById('playerDoneBtn');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const pCount = document.getElementById('playerCount');
+
+function currentItem() { return ITEMS.find(i => i.id === player.playlist[player.index]) || null; }
+
+function activeSource(it) {
+  if (it.variants && it.variants.length) return it.variants[player.variant] || it.variants[0];
+  return { kind: it.kind, id: it.pid || it.vid, vid: it.vid, count: it.count, label: null };
+}
+
+function ytUrl(it, src) {
+  if (it.kind === 'channel') return it.url;
+  if (src.kind === 'playlist') return 'https://www.youtube.com/playlist?list=' + src.id;
+  return 'https://www.youtube.com/watch?v=' + (src.vid || src.id);
+}
+
+function loadMedia() {
+  const it = currentItem();
+  if (!it) return;
+  const c = CATS[it.cat];
+  const src = activeSource(it);
+  const embed = src.kind === 'playlist'
+    ? `https://www.youtube.com/embed/videoseries?list=${src.id}&autoplay=1&rel=0&playsinline=1`
+    : `https://www.youtube.com/embed/${src.vid || src.id}?autoplay=1&rel=0&playsinline=1&modestbranding=1`;
+  frameEl.innerHTML = `<iframe src="${embed}" title="${it.title} 영상" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+
+  eyebrowEl.textContent = '#' + String(it.num).padStart(2, '0') + ' · ' + c.name + ' · ' + it.grade;
+  eyebrowEl.style.color = c.c1;
+  pTitle.textContent = it.title;
+  pSub.textContent = it.source + ' · ' + (src.label ? src.label + ' · ' : '') + (src.count || it.count || '');
+  pNote.hidden = !it.note;
+  pNote.textContent = it.note || '';
+
+  if (it.variants && it.variants.length) {
+    variantsEl.hidden = false;
+    variantsEl.innerHTML = it.variants.map((v, i) =>
+      `<button class="variant ${i === player.variant ? 'active' : ''}" data-variant="${i}">${v.label}</button>`
+    ).join('');
+  } else {
+    variantsEl.hidden = true;
+    variantsEl.innerHTML = '';
+  }
+
+  openYt.href = ytUrl(it, src);
+  openYt.textContent = it.kind === 'channel' ? '채널 열기' : '유튜브에서 보기';
+  pCount.textContent = (player.index + 1) + ' / ' + player.playlist.length;
+  prevBtn.disabled = player.index <= 0;
+  nextBtn.disabled = player.index >= player.playlist.length - 1;
+  syncDoneBtn();
+}
+
+function syncDoneBtn() {
+  const it = currentItem();
+  if (!it) return;
+  if (doneSet.has(it.id)) {
+    doneBtn.textContent = '✓ 완주 완료';
+    doneBtn.classList.add('on');
+  } else {
+    doneBtn.textContent = '✓ 완주 체크';
+    doneBtn.classList.remove('on');
+  }
+}
+
+function openPlayer(id, playlist) {
+  const list = (playlist && playlist.length) ? playlist : getFiltered().map(i => i.id);
+  const idx = Math.max(0, list.indexOf(id));
+  if (idx < 0) return;
+  player.playlist = list;
+  player.index = idx;
+  player.variant = 0;
+  player.open = true;
+  backdrop.classList.add('open');
+  document.body.classList.add('locked');
+  loadMedia();
+}
+
+function closePlayer() {
+  player.open = false;
+  backdrop.classList.remove('open');
+  document.body.classList.remove('locked');
+  frameEl.innerHTML = '';
+}
+
+function step(delta) {
+  const ni = player.index + delta;
+  if (ni < 0 || ni >= player.playlist.length) return;
+  player.index = ni;
+  player.variant = 0;
+  loadMedia();
+}
+
+grid.addEventListener('click', (e) => {
+  const stamp = e.target.closest('[data-stamp]');
+  if (stamp) {
+    e.stopPropagation();
+    toggleDone(Number(stamp.dataset.stamp));
+    return;
+  }
+  const card = e.target.closest('.card');
+  if (card) openPlayer(Number(card.dataset.id), getFiltered().map(i => i.id));
+});
+
+document.getElementById('pills').addEventListener('click', (e) => {
+  const pill = e.target.closest('.pill');
+  if (!pill) return;
+  currentFilter = pill.dataset.filter;
+  buildPills();
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+document.getElementById('grades').addEventListener('click', (e) => {
+  const chip = e.target.closest('.gchip');
+  if (!chip) return;
+  currentGrade = chip.dataset.grade;
+  buildGrades();
+  render();
+});
+
+document.getElementById('searchToggle').addEventListener('click', () => {
+  const box = document.getElementById('searchBox');
+  box.classList.toggle('open');
+  if (box.classList.contains('open')) document.getElementById('searchInput').focus();
+});
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  searchQuery = e.target.value.trim();
+  render();
+});
+
+document.getElementById('shuffleBtn').addEventListener('click', () => {
+  orderItems = [...orderItems].sort(() => Math.random() - 0.5);
+  render();
+  toast('순서를 섞었어요 🔀');
+});
+
+document.getElementById('pickBtn').addEventListener('click', () => {
+  const list = getFiltered();
+  if (!list.length) return;
+  const pool = list.filter(i => !doneSet.has(i.id));
+  const pick = (pool.length ? pool : list)[Math.floor(Math.random() * (pool.length ? pool.length : list.length))];
+  openPlayer(pick.id, list.map(i => i.id));
+});
+
+document.getElementById('variants').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-variant]');
+  if (!b) return;
+  player.variant = Number(b.dataset.variant);
+  loadMedia();
+});
+
+prevBtn.addEventListener('click', () => step(-1));
+nextBtn.addEventListener('click', () => step(1));
+document.getElementById('playerClose').addEventListener('click', closePlayer);
+backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closePlayer(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && player.open) closePlayer(); });
+
+doneBtn.addEventListener('click', () => {
+  const it = currentItem();
+  if (it) toggleDone(it.id);
+});
+
+/* 설정 */
+const settingsModal = document.getElementById('modalBackdrop');
+document.getElementById('settingsBtn').addEventListener('click', () => settingsModal.classList.add('open'));
+document.getElementById('closeModalBtn').addEventListener('click', () => settingsModal.classList.remove('open'));
+settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.remove('open'); });
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('완주 기록을 모두 지울까요?')) return;
+  doneSet.clear();
+  saveDone();
+  buildPills();
+  render();
+  settingsModal.classList.remove('open');
+  toast('완주 기록을 초기화했어요');
+});
+
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1900);
+}
+
+buildPills();
+buildGrades();
+saveDone();
+render();
+</script>
+</body>
+</html>
