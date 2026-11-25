@@ -65,10 +65,10 @@
   .search-input:focus { border-color: var(--mint); }
 
   /* ---------- filters ---------- */
-  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
   .pill {
     flex: 0 0 auto; border: 1px solid var(--border); background: #fff;
-    border-radius: 999px; padding: 8px 12px; font-size: 12.5px; font-weight: 800;
+    border-radius: 999px; padding: 7px 9px; font-size: 12px; font-weight: 800;
     color: var(--text); cursor: pointer; white-space: nowrap; font-family: inherit;
     transition: background .15s, color .15s;
   }
@@ -77,6 +77,7 @@
   .pill.active .n { opacity: .7; }
 
   .grades { display: flex; gap: 5px; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+  .grades[hidden] { display: none; }
   .grades::-webkit-scrollbar { display: none; }
   .gchip {
     flex: 0 0 auto; border: 1px solid transparent; background: var(--bg2);
@@ -84,6 +85,17 @@
     color: #5C6E64; cursor: pointer; white-space: nowrap; font-family: inherit;
   }
   .gchip.active { background: #D8F7EA; border-color: #9BE8CE; color: #0A7D5C; }
+
+  /* ---------- 사회 학기 세부 필터 ---------- */
+  .sems { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+  .sems[hidden] { display: none; }
+  .schip {
+    flex: 0 0 auto; border: 1px solid transparent; background: var(--bg2);
+    border-radius: 9px; padding: 6px 8px; font-size: 11.5px; font-weight: 800;
+    color: #5C6E64; cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  .schip.active { background: #D8F7EA; border-color: #9BE8CE; color: #0A7D5C; }
+  .schip .n { opacity: .55; margin-left: 2px; font-variant-numeric: tabular-nums; }
 
   /* ---------- progress ---------- */
   .progress-wrap { margin-bottom: 13px; }
@@ -249,6 +261,48 @@
   .variant.active { background: #12B886; border-color: #12B886; color: #fff; }
   .player-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; overflow: hidden; }
   .player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .poster { position: absolute; inset: 0; }
+  .poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .poster-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,14,11,0.72), rgba(6,14,11,0.9)); }
+  .poster-msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 12px;
+  }
+  .poster-msg .box {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: rgba(8,20,15,0.82); border: 1px solid rgba(111,227,188,0.35);
+    border-radius: 14px; padding: 11px 15px; color: #FFF;
+    font-size: 12px; font-weight: 800; line-height: 1.45; max-width: 94%;
+  }
+  .poster-msg .sub { font-size: 10.5px; font-weight: 700; color: #B9D6C9; }
+  .poster-msg .big { font-size: 20px; line-height: 1; color: #6FE3BC; }
+
+  /* ---------- 단원 목차 ---------- */
+  .chapters { margin-top: 10px; background: rgba(255,255,255,0.06); border-radius: 13px; padding: 9px 10px; }
+  .chapters[hidden] { display: none; }
+  .chap-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 900; color: #A9BFB5; letter-spacing: 0.1px; }
+  .chap-head b { color: #6FE3BC; font-weight: 900; margin-left: 2px; }
+  .chap-toggle {
+    border: none; background: transparent; color: #6FE3BC; font-size: 11px; font-weight: 900;
+    cursor: pointer; font-family: inherit; padding: 2px 4px;
+  }
+  .chap-list { display: flex; flex-direction: column; gap: 4px; max-height: 38vh; overflow-y: auto; margin-top: 7px; -webkit-overflow-scrolling: touch; }
+  .chap-list[hidden] { display: none; }
+  .chap {
+    display: flex; align-items: flex-start; gap: 7px; width: 100%; text-align: left;
+    background: rgba(255,255,255,0.07); border: none; border-radius: 10px;
+    padding: 8px 9px; color: #DDF3EA; cursor: pointer; font-family: inherit;
+  }
+  .chap .idx { flex: 0 0 auto; font-size: 10.5px; font-weight: 900; color: #8FBFAA; font-variant-numeric: tabular-nums; padding-top: 1px; }
+  .chap .body { min-width: 0; }
+  .chap .u { display: block; font-size: 10px; font-weight: 800; color: #8FBFAA; line-height: 1.3; margin-bottom: 2px; }
+  .chap .t { display: block; font-size: 11.5px; font-weight: 800; line-height: 1.34; }
+  .chap.active { background: rgba(18,184,134,0.26); box-shadow: inset 0 0 0 1px rgba(111,227,188,0.55); }
+  .chap.active .idx, .chap.active .u { color: #8FF0CE; }
+  .chap.active .t { color: #fff; }
+  .chap:active { background: rgba(255,255,255,0.15); }
+  .chap.ext { text-decoration: none; }
+  .chap .go { margin-left: auto; align-self: center; flex: 0 0 auto; color: #6FE3BC; font-weight: 900; font-size: 13px; padding-left: 2px; }
   .player-actions { display: flex; gap: 8px; margin-top: 12px; }
   .p-btn {
     flex: 1; text-align: center; border-radius: 12px; padding: 11px 8px; font-size: 12.5px;
@@ -298,6 +352,7 @@
   </div>
 
   <div class="pills" id="pills"></div>
+  <div class="sems" id="sems" hidden></div>
   <div class="grades" id="grades"></div>
 
   <div class="progress-wrap">
@@ -357,6 +412,13 @@
     <div class="player-note" id="playerNote" hidden></div>
     <div class="variants" id="variants" hidden></div>
     <div class="player-frame" id="playerFrame"></div>
+    <div class="chapters" id="chapters" hidden>
+      <div class="chap-head">
+        <span>단원·차시 목차<b id="chapTotal"></b></span>
+        <button class="chap-toggle" id="chapToggle">접기</button>
+      </div>
+      <div class="chap-list" id="chapList"></div>
+    </div>
     <div class="player-actions">
       <a class="p-btn ghost" id="openYt" href="#" target="_blank" rel="noopener">유튜브에서 보기</a>
       <button class="p-btn done" id="playerDoneBtn">✓ 완주 체크</button>
@@ -372,13 +434,14 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const DATA = {"items":[{"num":1,"cat":"social","grade":"3-1","grades":[3],"source":"미래엔","title":"미래엔 3-1 사회 차시별 개념","desc":"지도·우리 고장·옛이야기를 3분 애니로","kind":"playlist","pid":"PLTLKL6ThErVL4BeM0j16P4CzA__OMht3W","vid":"gxke6kgknms","count":"24편","tags":"지도 우리고장 옛이야기 3학년 1학기","id":1,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/gxke6kgknms/hqdefault.jpg"},{"num":2,"cat":"social","grade":"3-2","grades":[3],"source":"미래엔","title":"미래엔 3-2 사회 차시별 개념","desc":"환경과 생활, 교통·통신 발달의 변화","kind":"playlist","pid":"PLTLKL6ThErVIjACuoEotweVLujIJiToVy","vid":"F6zUVJweNdU","count":"23편","tags":"환경 생활 교통 통신 옛날 오늘날 3학년 2학기","id":2,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/F6zUVJweNdU/hqdefault.jpg"},{"num":3,"cat":"social","grade":"3학년","grades":[3],"source":"클래스로그","title":"클래스로그 3학년 사회 전단원","desc":"풍부한 사진·자료로 단원 총정리","kind":"playlist","pid":"PLjvzCZdbm_z1Yft0K4K-Fm-aIQceGCU82","vid":"Ik3y6Nxbv4Q","count":"24편","tags":"고장 환경 생활 모습 옛 도구 3학년","id":3,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/Ik3y6Nxbv4Q/hqdefault.jpg"},{"num":4,"cat":"social","grade":"4-1","grades":[4],"source":"미래엔","title":"미래엔 4-1 사회 차시별 개념","desc":"지도 읽기부터 서술형 수행평가 대비까지","kind":"playlist","pid":"PLTLKL6ThErVIfJGvnwQzRTJZSDi1NcqFR","vid":"TM4Ht2CaxAk","count":"28편","tags":"지역 위치 공공기관 축제 4학년 1학기 수행평가","id":4,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/TM4Ht2CaxAk/hqdefault.jpg"},{"num":5,"cat":"social","grade":"4-2","grades":[4],"source":"미래엔","title":"미래엔 4-2 사회 차시별 개념","desc":"촌락과 도시, 생산과 소비·시장 경제","kind":"playlist","pid":"PLTLKL6ThErVKjtyhQ8oGEtyCFtd4qwtNM","vid":"y32ro6gViiQ","count":"28편","tags":"촌락 도시 생산 소비 시장경제 4학년 2학기","id":5,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/y32ro6gViiQ/hqdefault.jpg"},{"num":6,"cat":"social","grade":"5학년","grades":[5],"source":"클래스로그","title":"클래스로그 5학년 사회 전단원","desc":"단원평가 필수 출제 포인트만 골라서","kind":"playlist","pid":"PLjvzCZdbm_z26M8AhCFOgrlG2i8BkkBLy","vid":"Phd_50Gdlv8","count":"57편","tags":"국토 지리 인권 헌법 법 5학년 단원평가","id":6,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/Phd_50Gdlv8/hqdefault.jpg"},{"num":7,"cat":"social","grade":"6학년","grades":[6],"source":"클래스로그","title":"클래스로그 6학년 사회 전단원","desc":"민주화 과정과 시사 상식 완벽 대비","kind":"playlist","pid":"PLjvzCZdbm_z111EGb-R_nUJcW9Bh6d4wR","vid":"U7BuhldCgC4","count":"38편","tags":"정치 발전 글로벌 무역 경제 민주화 6학년","id":7,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/U7BuhldCgC4/hqdefault.jpg"},{"num":8,"cat":"science","grade":"3-1","grades":[3],"source":"미래엔","title":"미래엔 3-1 과학 차시별 개념","desc":"배추흰나비 관찰과 교과서 실험 해설","kind":"playlist","pid":"PLTLKL6ThErVLDAuIP0TA-cr_VoaBsd6am","vid":"JZGtNO2_Xc4","count":"21편","tags":"물질 성질 동물 한살이 배추흰나비 3학년 1학기","id":8,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/JZGtNO2_Xc4/hqdefault.jpg"},{"num":9,"cat":"science","grade":"3학년","grades":[3],"source":"클래스로그","title":"클래스로그 3학년 과학 전단원","desc":"3분 실사 클립으로 실험 예습·복습","kind":"playlist","pid":"PLjvzCZdbm_z1g7DG7cpcZYeWJEc3ASFSs","vid":"pKfKq0lHJAQ","count":"41편","tags":"물체 물질 자석 지구 달 3학년 실험","id":9,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/pKfKq0lHJAQ/hqdefault.jpg"},{"num":10,"cat":"science","grade":"4-1","grades":[4],"source":"미래엔","title":"미래엔 4-1 과학 차시별 개념","desc":"지층의 원리와 강낭콩 싹 틔우기 탐구","kind":"playlist","pid":"PLTLKL6ThErVIkelqg0AfPh7QcoWsqL9TS","vid":"Oc2pRuc3dfI","count":"9편","tags":"지층 화석 식물 한살이 강낭콩 4학년 1학기","id":10,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/Oc2pRuc3dfI/hqdefault.jpg"},{"num":11,"cat":"science","grade":"4학년","grades":[4],"source":"클래스로그","title":"클래스로그 4학년 과학 전단원","desc":"화산·지진부터 그림자까지 차시별 정리","kind":"playlist","pid":"PLjvzCZdbm_z1bqpkwbnGRADX1pRgjYN04","vid":"ZCzd_YdPMBM","count":"47편","tags":"화산 지진 물의 여행 그림자 4학년","id":11,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/ZCzd_YdPMBM/hqdefault.jpg"},{"num":12,"cat":"science","grade":"5-1","grades":[5],"source":"미래엔","title":"미래엔 5-1 과학 차시별 개념","desc":"고학년 물리·화학 기초 다지기","kind":"playlist","pid":"PLTLKL6ThErVIgogwUxsEmOWHt08OKYpUW","vid":"WtQXeCXmAjQ","count":"19편","tags":"온도 열 태양계 별 용해 5학년 1학기","id":12,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/WtQXeCXmAjQ/hqdefault.jpg"},{"num":13,"cat":"science","grade":"5학년","grades":[5],"source":"클래스로그","title":"클래스로그 5학년 과학 전단원","desc":"리트머스 실험과 소화·순환계 입체 학습","kind":"playlist","pid":"PLjvzCZdbm_z1NF7JFqTbRJBskS19xbSNs","vid":"7TtFDG5cg_4","count":"44편","tags":"생태계 환경 산 염기 인체 소화 순환 5학년","id":13,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/7TtFDG5cg_4/hqdefault.jpg"},{"num":14,"cat":"science","grade":"6-1","grades":[6],"source":"미래엔","title":"미래엔 6-1 과학 차시별 개념","desc":"중등 과학으로 이어지는 핵심 개념","kind":"playlist","pid":"PLTLKL6ThErVJOyEfITDca7WMnkjwBo4UR","vid":"B3duu-lIHu4","count":"17편","tags":"지구 달 빛 렌즈 식물 구조 6학년 1학기","id":14,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/B3duu-lIHu4/hqdefault.jpg"},{"num":15,"cat":"science","grade":"6학년","grades":[6],"source":"클래스로그","title":"클래스로그 6학년 과학 전단원","desc":"6학년 최고 난이도 단원 완벽 마스터","kind":"playlist","pid":"PLjvzCZdbm_z2khxtXoTlpo2IJvE1uiwqI","vid":"lMgVwMMUFN4","count":"34편","tags":"전기 계절 변화 연소 6학년 난이도","id":15,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/lMgVwMMUFN4/hqdefault.jpg"},{"num":16,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"클래스로그","title":"클래스로그 역사 사전","desc":"고조선부터 대한민국까지 인물·사건 흐름","kind":"playlist","pid":"PLjvzCZdbm_z0GcXJFlz2TSkJWofLGqr0W","vid":"yM7WAG1L5-w","count":"147편","tags":"한국사 역사사전 고조선 대한민국 인물 사건 테마","id":16,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/yM7WAG1L5-w/hqdefault.jpg"},{"num":17,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"EBS","title":"EBS 스토리 한국사","desc":"EBS 교재 연계 영상으로 전체 흐름 정리","kind":"playlist","pid":"PL_gpLf9VtGfBtQ0Vg4ezDhCteGORANX1R","vid":"iK2e2OQP2Co","count":"7편","tags":"EBS 스토리 한국사 교재 연계 로드맵","id":17,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/iK2e2OQP2Co/hqdefault.jpg"},{"num":18,"cat":"history","grade":"4~6","grades":[4,5,6],"source":"최태성 초등TV","title":"큰별쌤 초등 한국사 개념","desc":"초등 한능검 대비 판서·통강 개념 강의","kind":"playlist","pid":"PLp9pLtKPJuPaFA_yjPFFa60fTqJeffzc0","vid":"bJ0LDaYT7Tw","count":"22편","note":"원래 연결된 KBS키즈 재생목록이 삭제되어, 큰별쌤(최태성)의 초등 한국사 개념 재생목록으로 연결했어요.","fixed":true,"tags":"큰별쌤 최태성 KBS키즈 초등 한국사 한능검 판서 통강","id":18,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/bJ0LDaYT7Tw/hqdefault.jpg"},{"num":19,"cat":"history","grade":"4~6","grades":[4,5,6],"source":"최태성 초등TV","title":"최태성 초등TV 채널","desc":"초등 눈높이 한국사·한능검 영상 모음","kind":"channel","vid":"QxnOzn5FXTY","url":"https://www.youtube.com/@최태성초등TV/videos","avatar":"https://yt3.googleusercontent.com/idBsQqcgejdk0XRxgPy9g5k-JifCtHrcCQqr6-UADTw8LRi4mlRjTIxDMTwdsEllfhFzW4gtQAc=s176-c-k-c0x00ffffff-no-rj","note":"채널 카드예요. 인앱에서는 최신 영상이 재생되고, 채널 전체는 아래 버튼에서 볼 수 있어요.","tags":"최태성 초등TV 채널 한능검 4학년 5학년 6학년","id":19,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/QxnOzn5FXTY/hqdefault.jpg"},{"num":20,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"지니스쿨","title":"지니키즈 역사 채널","desc":"애니메이션으로 인물과 사건 흐름 파악","kind":"channel","vid":"RPMqTXCtlDo","url":"https://www.youtube.com/@geni_history","avatar":"https://yt3.googleusercontent.com/ytc/AIdro_kZz4gcXFGhdi9glyffWVM94lS1RkDWN7YsFdw8JBAzXg=s176-c-k-c0x00ffffff-no-rj","note":"채널 카드예요. 인앱에서는 최신 영상이 재생되고, 채널 전체는 아래 버튼에서 볼 수 있어요.","tags":"지니키즈 지니스쿨 역사 애니메이션 입문","id":20,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/RPMqTXCtlDo/hqdefault.jpg"},{"num":21,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"최태성 유아TV","title":"어린이 조선왕조실록","desc":"조선 왕과 사건을 이야기로 쉽게","kind":"playlist","pid":"PLiDxa1RAwEQtrtYDluSgc6pzqnJ1uLwOs","vid":"9sAfTrqpOiE","count":"32편","tags":"조선시대 조선왕조실록 왕 인물 한국사","id":21,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/9sAfTrqpOiE/hqdefault.jpg"},{"num":22,"cat":"history","grade":"3~4","grades":[3,4,5,6],"source":"최태성 유아TV","title":"처음 만나는 삼국유사","desc":"삼국유사 속 이야기를 만화로 재밌게","kind":"playlist","pid":"PLiDxa1RAwEQuVGIFotbLSdk2jmWHWB_33","vid":"LGAgP0n85OU","count":"30편","tags":"고대사 삼국유사 삼국시대 설화 만화","id":22,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/LGAgP0n85OU/hqdefault.jpg"},{"num":23,"cat":"history","grade":"3~6","grades":[3,4,5,6],"source":"EBS 키즈","title":"시간을 달리는 세계사","desc":"시간여행 콘셉트로 세계사 결정적 순간","kind":"playlist","pid":"PLKDPDirFfxZS8L33EQ0-_RHzlNzzFFDwA","vid":"FZv8uaKRuNU","count":"28편","tags":"세계사 세계문명 EBS놀이터 시간여행","id":23,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/FZv8uaKRuNU/hqdefault.jpg"},{"num":24,"cat":"history","grade":"2~6","grades":[3,4,5,6],"source":"지니스쿨","title":"이야기 세계사 World History","desc":"애니메이션 스토리로 세계사 배경지식 확장","kind":"playlist","pid":"PL9963YeJsUgDAGSByOa7FkOun6yjK1YjF","vid":"sP99_97-mXU","count":"31편","tags":"세계사 고대 근현대 애니메이션 지니스쿨","id":24,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/sP99_97-mXU/hqdefault.jpg"},{"num":25,"cat":"hanja","grade":"전학년","grades":[3,4,5,6],"source":"우리들의 초등학교","title":"5분 한자 시리즈","desc":"5분 컷으로 한자 원리부터 어휘 확장","kind":"playlist","pid":"PL6ZqXU6Jpq32zhgUmfv9DzbpZetHTuoAz","vid":"xlWbrdEhcvw","count":"25편","tags":"5분한자 한자 원리 획순 낱말 어휘","id":25,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/xlWbrdEhcvw/hqdefault.jpg"},{"num":26,"cat":"hanja","grade":"3~4","grades":[3,4,5,6],"source":"반디랑블록한자","title":"하루 10분 반디랑 블록한자","desc":"블록처럼 결합하는 한자 원리 10분 루틴","kind":"playlist","pid":"PLrzJCABisjuNDGaO3Zlz5cPlOYrIEqcHm","vid":"vNbSegazMUc","count":"30편","tags":"블록한자 반디랑 10분 복습 한자 원리","id":26,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/vNbSegazMUc/hqdefault.jpg"},{"num":27,"cat":"hanja","grade":"전학년","grades":[3,4,5,6],"source":"홍선생미술","title":"한자 좋아좋아 (동요)","desc":"노래로 훈음이 저절로 붙는 한자 동요","kind":"playlist","pid":"PLmUqRfwjACrbW25371IqH-dygBSCzyaNd","vid":"OGyQQ5drGgU","count":"26편","note":"원래 연결된 '동요로 외우는 한자' 재생목록이 삭제되어, 같은 홍선생미술 채널의 '한자 좋아좋아'로 연결했어요.","fixed":true,"tags":"홍선생미술 한자동요 8급 4급 급수 노래 훈음","id":27,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/OGyQQ5drGgU/hqdefault.jpg"},{"num":28,"cat":"hanja","grade":"전학년","grades":[3,4,5,6],"source":"신비한자","title":"신비한자 급수별 챈트","desc":"8급부터 급수별로 노래·챈트 반복","kind":"playlist","pid":"PLIbkNhctSDWHX2QD4A1BV0pVfHuj0_ow8","vid":"-b_KTEva-LE","count":"8편","variants":[{"label":"8급","kind":"playlist","id":"PLIbkNhctSDWHX2QD4A1BV0pVfHuj0_ow8","vid":"-b_KTEva-LE","count":"8편"},{"label":"7급","kind":"playlist","id":"PLIbkNhctSDWFJ2gOGRWoRKXGDfXyxp_pr","vid":"gTpebJlVOrc","count":"8편"},{"label":"6급","kind":"playlist","id":"PLIbkNhctSDWF6LQjchLxzDNqg0nWfJTfQ","vid":"7DEX3vb7vNo","count":"8편"}],"note":"5급 재생목록은 원래 링크가 삭제되어 지금은 8·7·6급까지 볼 수 있어요.","fixed":true,"tags":"신비한자 챈트 8급 7급 6급 5급 급수 한자","id":28,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/-b_KTEva-LE/hqdefault.jpg"},{"num":29,"cat":"hanja","grade":"3~4","grades":[3,4,5,6],"source":"주니토니","title":"주니토니 8급·7급 한자동요","desc":"캐릭터 동요로 첫 한자를 즐겁게","kind":"video","vid":"bmucw9XFFWg","count":"동요 2편","variants":[{"label":"8급","kind":"video","id":"bmucw9XFFWg","vid":"bmucw9XFFWg","count":"동요"},{"label":"7급","kind":"video","id":"qk6ofM_wwB0","vid":"qk6ofM_wwB0","count":"동요"}],"tags":"주니토니 한자동요 8급 7급 키즈캐슬","id":29,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/bmucw9XFFWg/hqdefault.jpg"},{"num":30,"cat":"hanja","grade":"2~6","grades":[3,4,5,6],"source":"EBS Learning","title":"천하무적 한자 900","desc":"상형 원리와 실사·애니로 어휘력 강화","kind":"playlist","pid":"PLQvhoNAcU3iFwkmjJ1qKfU0heiMg3i88W","vid":"r0Z2U2LNIJA","count":"60편","tags":"EBS 천하무적 한자 900 교육부 기초한자 상형","id":30,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/r0Z2U2LNIJA/hqdefault.jpg"},{"num":31,"cat":"hanja","grade":"3~6","grades":[3,4,5,6],"source":"한글어휘","title":"초등 사자성어 100개 모음","desc":"비문학·사회 지문에 꼭 나오는 필수 성어","kind":"playlist","pid":"PLJVNgCEQC0prcW6zg3Guu9Ic8HZBWt1HM","vid":"yt3hGlZuZYQ","count":"11편","tags":"사자성어 성어 국어 독해 비문학 어휘","id":31,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/yt3hGlZuZYQ/hqdefault.jpg"},{"num":32,"cat":"english","grade":"전학년","grades":[3,4,5,6],"source":"영단어 스캐너","title":"교육부 지정 초등 영단어 800","desc":"원어민 발음·챈트로 하루 10개씩 주제·품사별 암기","kind":"playlist","pid":"PL8ls7iyiaZK8yKGvjsL3J6h9hg7W49Lee","vid":"q6-izT1T5AQ","count":"8편","tags":"영단어 800 교육부 지정 필수 단어 원어민 발음 챈트 하루10개 주제별 품사별 JSPVISION","id":32,"catLong":"초등 영어","thumb":"https://i.ytimg.com/vi/q6-izT1T5AQ/hqdefault.jpg"},{"num":33,"cat":"english","grade":"1~3","grades":[3],"source":"레벨업잉글리쉬","title":"생활영어 TOP 100 섀도잉","desc":"미국 초등 저학년 표현을 듣고 그대로 따라 말하기","kind":"video","vid":"4Sq4Tc6ZmLo","count":"단편","tags":"생활영어 섀도잉 쉐도잉 TOP100 학교생활 감정 표현 일상 대화 입에 붙이기","id":33,"catLong":"초등 영어","thumb":"https://i.ytimg.com/vi/4Sq4Tc6ZmLo/hqdefault.jpg"},{"num":34,"cat":"english","grade":"3~6","grades":[3,4,5,6],"source":"영어 자동 학습","title":"초등 교과서 영어 문장","desc":"교과서 빈출 문장 패턴과 일상 롤플레이","kind":"playlist","pid":"PLGiEkHihHvrAtdSPnm74I85E6WW76_6Ef","vid":"q1DlSxRpvjU","count":"5편","tags":"교과서 회화 문장 패턴 롤플레이 잉글리시보카 English_voca 학교 영어 시간","id":34,"catLong":"초등 영어","thumb":"https://i.ytimg.com/vi/q1DlSxRpvjU/hqdefault.jpg"},{"num":35,"cat":"english","grade":"3~6","grades":[3,4,5,6],"source":"길벗스쿨","title":"기적의 초등 영문법 저자 직강","desc":"중등 가기 전 품사·시제 구멍을 5분 컷으로 정리","kind":"playlist","pid":"PLWkyee4Ewqy669ri4qHQB2IXy7pQOpN-e","vid":"veEg34MFwsc","count":"45편","tags":"기초 영문법 기적의초등영문법 저자 직강 품사 시제 중등 대비 문법","id":35,"catLong":"초등 영어","thumb":"https://i.ytimg.com/vi/veEg34MFwsc/hqdefault.jpg"}],"cats":{"social":{"name":"사회","long":"초등 사회","emoji":"🗺️","c1":"#3DDC97","c2":"#12B886","ink":"#0B7A5A","soft":"#E7FBF3"},"science":{"name":"과학","long":"초등 과학","emoji":"🔬","c1":"#5AC8FA","c2":"#4F7CF7","ink":"#2B4FCB","soft":"#EAF2FF"},"history":{"name":"역사","long":"한국사·세계사","emoji":"📜","c1":"#FFC94D","c2":"#F97E45","ink":"#B4511B","soft":"#FFF3E4"},"hanja":{"name":"한자","long":"한자·사자성어","emoji":"🀄","c1":"#C79BFF","c2":"#8B5CF6","ink":"#5B33C4","soft":"#F3EDFF"},"english":{"name":"영어","long":"초등 영어","emoji":"🔤","c1":"#FF9EB5","c2":"#F2557F","ink":"#B02452","soft":"#FFF0F4"}}};
+const DATA = {"items":[{"num":1,"cat":"social","grade":"3-1","grades":[3],"source":"미래엔","title":"미래엔 3-1 사회 차시별 개념","desc":"지도·우리 고장·옛이야기를 3분 애니로","kind":"playlist","pid":"PLTLKL6ThErVL4BeM0j16P4CzA__OMht3W","vid":"gxke6kgknms","count":"24편","tags":"지도 우리고장 옛이야기 3학년 1학기","id":1,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/gxke6kgknms/hqdefault.jpg","sem":["3-1"],"chapters":[{"vid":"gxke6kgknms","u":"1단원 (1) ①","t":"우리 주변의 여러 장소를 이야기해 볼까요"},{"vid":"yl8HU2333E4","u":"1단원 (1) ②","t":"장소에 대한 나의 경험을 떠올려 볼까요"},{"vid":"VCYBPFJb-dc","u":"1단원 (1) ③","t":"여러 장소에 대한 느낌과 생각을 표현해 볼까요"},{"vid":"V5D6lWphqq4","u":"1단원 (1) ④","t":"여러 장소에 대한 느낌과 생각을 함께 이야기해 볼까요"},{"vid":"UPYsO1LrHb4","u":"1단원 (2) ①","t":"우리 생활에 편리함과 도움을 주는 장소를 알아볼까요"},{"vid":"pgbNKg8mgcw","u":"1단원 (2) ②","t":"우리 생활에 편리함과 도움을 주는 장소를 찾아볼까요"},{"vid":"EIH25koYjwM","u":"1단원 (2) ③","t":"우리 생활에 편리함과 도움을 주는 장소를 조사해 볼까요"},{"vid":"zl6ehHSJut0","u":"1단원 (2) ④","t":"우리가 살기 좋은 곳은 어떤 모습일까요"},{"vid":"2n-8AIt4UOs","u":"1단원 (2) ⑤","t":"우리가 살기 좋은 곳을 함께 표현해 볼까요"},{"vid":"bTDzKGSBWvw","u":"2단원 (1) ①","t":"시간의 흐름을 알아볼까요"},{"vid":"WS_HE0hiFyU","u":"2단원 (1) ②","t":"시간을 표현하는 말을 알아볼까요"},{"vid":"k5jMUSbhIrA","u":"2단원 (1) ③","t":"사건을 시간의 흐름에 따라 나타내 볼까요"},{"vid":"x94SpAklMFk","u":"2단원 (1) ④","t":"우리가 경험한 것도 역사가 될 수 있을까요"},{"vid":"vItweOGFqDQ","u":"2단원 (2) ①","t":"과거의 모습은 어떻게 알 수 있을까요"},{"vid":"M9Y3fI0A-uM","u":"2단원 (2) ②","t":"오래된 물건을 통해 과거 모습을 상상해 볼까요"},{"vid":"5Q46L7lyYXA","u":"2단원 (2) ③","t":"일기와 편지를 통해 과거 모습을 상상해 볼까요"},{"vid":"RI58NK2liBo","u":"2단원 (2) ④","t":"사진과 그림을 통해 과거 모습을 상상해 볼까요"},{"vid":"YlObb8qMQbk","u":"2단원 (2) ⑤","t":"노래 가사와 신문 기사를 통해 과거 모습을 상상해 볼까요"},{"vid":"2CnkhQGK8Fk","u":"2단원 (2) ⑥","t":"건축물을 통해 과거 모습을 상상해 볼까요"},{"vid":"AQvf618IPa8","u":"2단원 (3) ①","t":"지역 사람들의 달라진 생활 모습은 어떻게 알 수 있을까요"},{"vid":"7UwdjRN3L0g","u":"2단원 (3) ②","t":"지역에 전해 오는 이야기를 통해 지역의 변화를 알아볼까요"},{"vid":"SIGHaK9QjgI","u":"2단원 (3) ③","t":"책과 그림을 통해 지역의 변화를 알아볼까요"},{"vid":"g6p9_dztrcg","u":"2단원 (3) ④","t":"사진과 영상을 통해 지역의 변화를 알아볼까요"},{"vid":"jIOV07SNKUU","u":"2단원 (3) ⑤","t":"지역 사람들의 달라진 생활 모습을 조사해 볼까요"}]},{"num":2,"cat":"social","grade":"3-2","grades":[3],"source":"미래엔","title":"미래엔 3-2 사회 차시별 개념","desc":"환경과 생활, 교통·통신 발달의 변화","kind":"playlist","pid":"PLTLKL6ThErVIjACuoEotweVLujIJiToVy","vid":"F6zUVJweNdU","count":"23편","tags":"환경 생활 교통 통신 옛날 오늘날 3학년 2학기","id":2,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/F6zUVJweNdU/hqdefault.jpg","sem":["3-2"],"chapters":[{"vid":"F6zUVJweNdU","u":"1단원 (1) ①","t":"사회 변화로 달라진 생활 모습을 알아볼까요"},{"vid":"VXO9dcv_5NY","u":"1단원 (1) ②","t":"저출산·고령화로 달라진 우리 사회의 모습을 알아볼까요"},{"vid":"QriU0nX6V2A","u":"1단원 (1) ③","t":"지능정보화는 우리 사회를 어떻게 바꾸고 있을까요"},{"vid":"tQMQXvz_a4c","u":"1단원 (1) ④","t":"사회 변화에 대처하려면 어떻게 해야 할까요"},{"vid":"tumdl1zrRzo","u":"1단원 (2) ①","t":"다양한 문화를 살펴볼까요"},{"vid":"xvgOrpigfLo","u":"1단원 (2) ②","t":"다양한 문화가 함께하면서 생겨날 수 있는 사회 문제를 알아볼까요"},{"vid":"PGzTNf_D_g8","u":"1단원 (2) ③","t":"다른 문화를 대할 때 어떤 태도를 지녀야 할까요"},{"vid":"bH4OtDAywm8","u":"1단원 (2) ④","t":"다양한 문화가 존중받는 사회를 만들기 위해 우리는 어떤 노력을 하고 있을까요"},{"vid":"rUPSMyUW9Ao","u":"2단원 (1) ①","t":"풍습이란 무엇일까요"},{"vid":"qzF2Lha_TYA","u":"2단원 (1) ②","t":"옛사람들의 생활 풍습을 알아볼까요"},{"vid":"foFU2NTc67o","u":"2단원 (1) ③","t":"옛사람들의 세시풍속을 알아볼까요"},{"vid":"p5jmP0HwuG4","u":"2단원 (1) ④","t":"옛사람들의 놀이를 알아볼까요"},{"vid":"DK83RXLEJGI","u":"2단원 (1) ⑤","t":"옛날과 오늘날의 풍습을 비교해 볼까요"},{"vid":"mEaZiO70nyU","u":"2단원 (2) ①","t":"오늘날 이용하는 교통수단은 무엇일까요"},{"vid":"0LDoLdRvU8M","u":"2단원 (2) ②","t":"옛날에 주로 이용한 교통수단을 알아볼까요"},{"vid":"caQyuVVUOSE","u":"2단원 (2) ③","t":"교통의 발달로 생활 모습은 어떻게 달라졌을까요"},{"vid":"pWWtdZUlSc4","u":"2단원 (2) ④","t":"교통의 발달로 불편해진 점은 무엇일까요"},{"vid":"6qzpAPywPCQ","u":"2단원 (2) ⑤","t":"교통의 발달로 미래의 생활 모습은 어떻게 달라질까요"},{"vid":"GilfEVCF4p4","u":"2단원 (3) ①","t":"통신수단이란 무엇일까요"},{"vid":"PIc68VVxGZM","u":"2단원 (3) ②","t":"옛날의 통신수단을 알아볼까요"},{"vid":"FgfTqwlZFmw","u":"2단원 (3) ③","t":"오늘날의 통신수단을 알아볼까요"},{"vid":"_-j5ukHaA-s","u":"2단원 (3) ④","t":"통신수단의 발달로 생활 모습은 어떻게 달라졌을까요"},{"vid":"7FoHK-04knE","u":"2단원 (3) ⑤","t":"미래의 통신수단과 생활 모습을 생각해 볼까요"}]},{"num":3,"cat":"social","grade":"3학년","grades":[3],"source":"클래스로그","title":"클래스로그 3학년 사회 전단원","desc":"풍부한 사진·자료로 단원 총정리","kind":"playlist","pid":"PLjvzCZdbm_z1Yft0K4K-Fm-aIQceGCU82","vid":"Ik3y6Nxbv4Q","count":"24편","tags":"고장 환경 생활 모습 옛 도구 3학년","id":3,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/Ik3y6Nxbv4Q/hqdefault.jpg","sem":["3-1","3-2"],"chapters":[{"vid":"Ik3y6Nxbv4Q","u":"초등 사회 3-1 · 1. 우리가 사는 곳 · 2~3차시","t":"우리 주변의 여러 장소 이야기하기"},{"vid":"wP87ry_ulaI","u":"초등 사회 3-1 · 1. 우리가 사는 곳 · 4~5차시","t":"우리 주변 여러 장소에서의 모습 표현해보기"},{"vid":"fVkDDpmv-3U","u":"초등 사회 3-1 · 1. 우리가 사는 곳 · 6~7차시","t":"우리 주변 여러 장소에 대한 생각과 느낌 소개하기"},{"vid":"Vj1zCUjY3Wk","u":"초등 사회 3-1 · 1. 우리가 사는 곳 · 12~13차시","t":"우리가 사는 곳 살펴보기"},{"vid":"_o8_3_ffkck","u":"초등 사회 3-1 · 1. 우리가 사는 곳 · 16차시","t":"우리 지역의 좋은 곳 소개하기"},{"vid":"APiJEDqEMco","u":"초등 사회 3-1 · 2. 일상에서 만나는 과거 · 3~4차시","t":"옛이야기가 담겨 있는 우리 주변의 모습 알아보기 1"},{"vid":"J5AyYkmQULU","u":"초등 사회 3-1 · 2. 일상에서 만나는 과거 · 3~4차시","t":"옛이야기가 담겨 있는 우리 주변의 모습 알아보기 2"},{"vid":"7F3-xsAVVl8","u":"초등 사회 3-1 · 2. 일상에서 만나는 과거 · 19~20차시","t":"옛이야기로 지역의 달라진 생활 모습 알아보기"},{"vid":"2alzgym7Aqc","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 10~11차시","t":"옛날 사람들이 교통수단을 이용했던 모습 알아보기"},{"vid":"-cJoEVtXgmU","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 14~15차시","t":"교통수단의 발달로 사람들의 달라진 생활 모습 알아보기 1"},{"vid":"jGtnNXV-QQE","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 14~15차시","t":"교통수단의 발달로 사람들의 달라진 생활 모습 알아보기 2"},{"vid":"UuG96qAn-MY","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 17차시","t":"교통수단의 발달로 달라질 미래의 생활 모습 예상하기"},{"vid":"xNlS_WMrwuU","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 19차시","t":"옛날 사람들이 통신수단을 이용했던 모습 알아보기"},{"vid":"BQ9n7d2FNXM","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 20~21차시","t":"오늘날 사람들이 통신수단을 이용하는 모습 알아보기"},{"vid":"q6eH6ynQ01w","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 24차시","t":"통신수단의 발달로 달라질 미래의 생활 모습 알아보기"},{"vid":"VAN3z0-CRuI","u":"초등 사회 3-2 · 1. 사회 변화와 다양한 문화 · 16~17차시","t":"다양한 문화를 존중하는 태도"},{"vid":"o4rzPdCVm8s","u":"초등 사회 3-1 · 2. 일상에서 만나는 과거 · 11차시","t":"오래된 물건이나 자료 알아보기"},{"vid":"A1AycgAqoQ8","u":"초등 사회 3-1 · 2. 일상에서 만나는 과거 · 12~13차시","t":"주변에서 오래된 물건이나 자료 찾아보기"},{"vid":"pb5Ig0pvEfM","u":"초등 사회 3-1 · 2. 일상에서 만나는 과거 · 25차시","t":"건축물로 지역의 달라진 생활 모습 알아보기"},{"vid":"XFxvLUe7c6o","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 4차시","t":"옛날의 세시 풍속 알아보기 1"},{"vid":"vfer7HKa6r4","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 4차시","t":"옛날의 세시 풍속 알아보기 2"},{"vid":"S0X0cNXGAV8","u":"초등 사회 3-2 · 2. 옛날과 오늘날의 생활 모습 · 5~6차시","t":"옛날과 오늘날의 세시 풍속 비교하기"},{"vid":"Kp1gZ3lJ3VE","u":"초등 사회 3-2 · 1. 사회 변화와 다양한 문화 · 2~3차시","t":"저출산으로 달라진 우리 사회의 모습"},{"vid":"wUnxx58oue0","u":"초등 사회 3-1 · 2. 일상에서 만나는 과거 · 5차시","t":"나의 성장 과정에서 일어난 일 알아보기"}],"noembed":true},{"num":4,"cat":"social","grade":"4-1","grades":[4],"source":"미래엔","title":"미래엔 4-1 사회 차시별 개념","desc":"지도 읽기부터 서술형 수행평가 대비까지","kind":"playlist","pid":"PLTLKL6ThErVIfJGvnwQzRTJZSDi1NcqFR","vid":"TM4Ht2CaxAk","count":"28편","tags":"지역 위치 공공기관 축제 4학년 1학기 수행평가","id":4,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/TM4Ht2CaxAk/hqdefault.jpg","sem":["4-1"],"chapters":[{"vid":"TM4Ht2CaxAk","u":"1단원 (1) ①","t":"우리 지역의 다양한 지도를 찾아볼까요"},{"vid":"8hQZhtAcnso","u":"1단원 (1) ②","t":"지도에서 방위표를 이용해 볼까요"},{"vid":"mnxS1qpvqyQ","u":"1단원 (1) ③","t":"지도의 기호와 범례를 알아볼까요"},{"vid":"h4VNciHYswo","u":"1단원 (1) ④","t":"지도에서 축척의 쓰임새를 알아볼까요"},{"vid":"E6T4mF-PBZ8","u":"1단원 (1) ⑤","t":"지도에서 땅의 높낮이를 어떻게 표현하는지 알아볼까요"},{"vid":"ydCSUyxX7Bc","u":"1단원 (1) ⑥","t":"우리 생활 속에서 지도를 활용해 볼까요"},{"vid":"cCDKsC5AZJw","u":"1단원 (2) ①","t":"지도에서 우리 지역의 위치를 확인해 볼까요"},{"vid":"WqwOeN95eNA","u":"1단원 (2) ②","t":"지리 정보란 무엇일까요"},{"vid":"JXahLMcCew4","u":"1단원 (2) ③","t":"우리 지역의 지리 정보를 조사해 볼까요"},{"vid":"_fyXYsDg-IQ","u":"1단원 (2) ④","t":"우리 지역과 다른 지역의 지리 정보를 비교해 볼까요"},{"vid":"PIT98wGSXg0","u":"2단원 (1) ①","t":"국가유산의 종류를 알아볼까요"},{"vid":"QyL3jjgXzc0","u":"2단원 (1) ②","t":"국가유산의 의미를 알아볼까요"},{"vid":"P7UO4BltewI","u":"2단원 (1) ③","t":"국가유산에 담긴 가치를 생각해 볼까요"},{"vid":"R9YXolsJJps","u":"2단원 (1) ④","t":"우리 지역의 국가유산을 조사해 볼까요"},{"vid":"de-j4HJs_j8","u":"2단원 (2) ①","t":"우리 지역의 역사를 알 수 있는 장소를 찾아볼까요"},{"vid":"tHmfHC6iCnk","u":"2단원 (2) ②","t":"우리 지역의 역사 체험 계획을 세워 볼까요"},{"vid":"8SCM8bgPG5A","u":"2단원 (2) ③","t":"우리 지역의 역사를 체험해 볼까요"},{"vid":"_iesAhX6ht4","u":"2단원 (2) ④","t":"우리 지역의 역사를 소개해 볼까요"},{"vid":"fSNLrSNV3Ss","u":"2단원 (2) ⑤","t":"우리 지역의 역사를 보존하려면 어떻게 해야 할까요"},{"vid":"TjxMn8jgzvQ","u":"3단원 (1) ①","t":"경제활동의 의미를 알아볼까요"},{"vid":"-hmP9_rYe2k","u":"3단원 (1) ②","t":"우리는 왜 선택하는 걸까요"},{"vid":"KerJQoNsrNw","u":"3단원 (1) ③","t":"경제활동 속 다양한 선택의 상황을 살펴볼까요"},{"vid":"4HOA8SwRLrE","u":"3단원 (1) ④","t":"합리적 선택이란 무엇일까요"},{"vid":"zpF15DAV3KI","u":"3단원 (1) ⑤","t":"합리적 소비 생활을 실천하기 위한 방법을 알아볼까요"},{"vid":"ValvBw8PoCA","u":"3단원 (2) ①","t":"지역 간 교류는 왜 이루어질까요"},{"vid":"V0pkQ9GtcEY","u":"3단원 (2) ②","t":"지역 간 교류의 다양한 모습을 살펴볼까요"},{"vid":"ikm98iq4IBw","u":"3단원 (2) ③","t":"지역 간에 교류하면서 상호 의존하는 모습을 알아볼까요"},{"vid":"R1JCecIyj6I","u":"3단원 (2) ④","t":"상호 의존하는 교류의 모습을 조사해 볼까요"}]},{"num":5,"cat":"social","grade":"4-2","grades":[4],"source":"미래엔","title":"미래엔 4-2 사회 차시별 개념","desc":"촌락과 도시, 생산과 소비·시장 경제","kind":"playlist","pid":"PLTLKL6ThErVKjtyhQ8oGEtyCFtd4qwtNM","vid":"y32ro6gViiQ","count":"28편","tags":"촌락 도시 생산 소비 시장경제 4학년 2학기","id":5,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/y32ro6gViiQ/hqdefault.jpg","sem":["4-2"],"chapters":[{"vid":"y32ro6gViiQ","u":"1단원 (1) ①","t":"학교의 일이 어떻게 결정되는지 알아볼까요"},{"vid":"gQ7nEachuIc","u":"1단원 (1) ②","t":"학교 자치를 통해 민주주의의 의미를 알아볼까요"},{"vid":"AAF4a469uUw","u":"1단원 (1) ③","t":"학생이 참여하는 자치 활동을 알아볼까요"},{"vid":"UnWmFvxlvfY","u":"1단원 (1) ④","t":"우리 학급의 일을 스스로 결정해 볼까요"},{"vid":"N56_mRlL7vE","u":"1단원 (1) ⑤","t":"민주적으로 문제를 해결하려면 어떤 태도를 지녀야 할까요"},{"vid":"sUgWeRl3WLQ","u":"1단원 (2) ①","t":"지역의 일은 누가 관심을 가져야 할까요"},{"vid":"klVcOi-U1iM","u":"1단원 (2) ②","t":"주민 자치란 무엇이고 왜 중요할까요"},{"vid":"a3PWmW0EG3Q","u":"1단원 (2) ③","t":"주민 참여의 중요성을 알아볼까요"},{"vid":"lN9wcn4u7aQ","u":"1단원 (2) ④","t":"지역의 일에 참여하는 방법을 알아볼까요"},{"vid":"dQuUZiANX3g","u":"1단원 (2) ⑤","t":"지역의 일에 어떤 태도로 참여해야 할까요"},{"vid":"Py51vcSYLTc","u":"2단원 (1) ①","t":"지역문제란 무엇일까요"},{"vid":"QBuVDCUOp54","u":"2단원 (1) ②","t":"지역문제의 해결 과정을 알아볼까요"},{"vid":"kUfyV2mvd2s","u":"2단원 (1) ③","t":"지역문제를 찾아 원인을 조사해 볼까요"},{"vid":"zlwwRY6q2-I","u":"2단원 (1) ④","t":"지역문제를 해결해 볼까요"},{"vid":"-6Kt6eXtP8E","u":"2단원 (1) ⑤","t":"지역문제의 해결 방안을 실천해 볼까요"},{"vid":"D0ay-4bw8Us","u":"2단원 (2) ①","t":"각 지역은 어떤 특성이 있을까요"},{"vid":"qGDvoeL3kDk","u":"2단원 (2) ②","t":"지역을 알리기 위한 노력을 알아볼까요"},{"vid":"nSroxiLL-5w","u":"2단원 (2) ③","t":"우리 지역을 소개해 볼까요"},{"vid":"1acM2szTM-0","u":"2단원 (2) ④","t":"지역을 알리는 것은 왜 중요할까요"},{"vid":"rPRYH2VjDYo","u":"3단원 (1) ①","t":"자연환경과 인문환경이란 무엇일까요"},{"vid":"8HKcCK9iLyQ","u":"3단원 (1) ②","t":"여러 지역의 자연환경과 인문환경의 특징을 알아볼까요"},{"vid":"n1TY6NDTP1o","u":"3단원 (1) ③","t":"여러 지역에서 환경을 이용하는 모습을 살펴볼까요"},{"vid":"gpe2kfD_wJw","u":"3단원 (1) ④","t":"환경의 이용과 개발에 따른 변화 모습을 살펴볼까요"},{"vid":"1sYDZ07Ih_c","u":"3단원 (1) ⑤","t":"환경을 이용하는 올바른 태도를 알아볼까요"},{"vid":"7ittsbgPuR8","u":"3단원 (2) ①","t":"도시에 대해 알아볼까요"},{"vid":"iDCZH2Z7AFI","u":"3단원 (2) ②","t":"특색 있는 여러 도시를 살펴볼까요"},{"vid":"TbBPmIpoq2I","u":"3단원 (2) ③","t":"도시에서 사람들이 살아가는 모습을 살펴볼까요"},{"vid":"0eiO5slS8y4","u":"3단원 (2) ④","t":"사람들이 살아가는 다양한 생활 공간을 살펴볼까요"}]},{"num":6,"cat":"social","grade":"5학년","grades":[5],"source":"클래스로그","title":"클래스로그 5학년 사회 전단원","desc":"단원평가 필수 출제 포인트만 골라서","kind":"playlist","pid":"PLjvzCZdbm_z26M8AhCFOgrlG2i8BkkBLy","vid":"Phd_50Gdlv8","count":"52편","tags":"국토 지리 인권 헌법 법 5학년 단원평가","id":6,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/Phd_50Gdlv8/hqdefault.jpg","sem":["5학년"],"chapters":[{"vid":"Phd_50Gdlv8","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 2~3차시","t":"구석기 시대와 신석기 시대 사람들의 생활 모습 알아보기"},{"vid":"wpXcdC8pTw0","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 4~5차시","t":"청동기 시대와 고조선 사람들의 생활 모습 알아보기 1"},{"vid":"hGi9ACWbJlc","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 4~5차시","t":"청동기 시대와 고조선 사람들의 생활 모습 알아보기 2"},{"vid":"f4mtB5kY_sA","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 7차시","t":"삼국과 가야의 성립 발전 과정과 사람들의 생활 모습 알아보기 1"},{"vid":"5pnOTwBj4fI","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 7차시","t":"삼국과 가야의 성립 발전 과정과 사람들의 생활 모습 알아보기 2"},{"vid":"OMt1H5t56X0","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 7차시","t":"삼국과 가야의 성립 발전 과정과 사람들의 생활 모습 알아보기 3"},{"vid":"hkkALgC1WXY","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 7차시","t":"삼국과 가야의 성립 발전 과정과 사람들의 생활 모습 알아보기 4"},{"vid":"REUPu2VbLX8","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 8~9차시","t":"통일신라의 성립 발전과정과 사람들의 생활 모습 알아보기 1"},{"vid":"Wyce-0AGQKA","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 8~9차시","t":"통일신라의 성립 발전과정과 사람들의 생활 모습 알아보기 2"},{"vid":"1kGPBzg-wQQ","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 8~9차시","t":"통일신라의 성립 발전과정과 사람들의 생활 모습 알아보기 3"},{"vid":"FW3gL2HZ6io","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 8~9차시","t":"통일신라의 성립 발전과정과 사람들의 생활 모습 알아보기 4"},{"vid":"fNEjJ9o7y_o","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 10~11차시","t":"고려의 건국 과정과 사회 모습 알아보기"},{"vid":"jz_8lCbnX0M","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 13차시","t":"고려와 주변 나라들의 관계 알아보기 1"},{"vid":"yl-bnWRk1R4","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 13차시","t":"고려와 주변 나라들의 관계 알아보기 2"},{"vid":"vZA-S78_h-Q","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 14~15차시","t":"고려 문화와 사람들의 생활 모습 알아보기 1"},{"vid":"cNf3gjIj0ZA","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 14~15차시","t":"고려 문화와 사람들의 생활 모습 알아보기 2"},{"vid":"_4bhEFWHbAk","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 14~15차시","t":"고려 문화와 사람들의 생활 모습 알아보기 3"},{"vid":"fC7fZdBzQnI","u":"초등 사회 5-2 · 1. 유적과 유물로 살펴본 옛 사람들의 생활 · 14~15차시","t":"고려 문화와 사람들의 생활 모습 알아보기 4"},{"vid":"f7347IvYAIU","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 2~3차시","t":"조선의 건국 과정과 사회 모습 알아보기"},{"vid":"d--ekR6U7U8","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 4~5차시","t":"조선과 주변 나라들의 관계 알아보기 1"},{"vid":"OqyWD8eTWNg","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 4~5차시","t":"조선과 주변 나라들의 관계 알아보기 2"},{"vid":"r0OdjyVMMFc","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 4~5차시","t":"조선과 주변 나라들의 관계 알아보기 3"},{"vid":"3L7fInzeD_A","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 4~5차시","t":"조선과 주변 나라들의 관계 알아보기 4"},{"vid":"kvYbo_GreTE","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 6~7차시","t":"조선 문화와 사람들의 생활 모습 알아보기 1"},{"vid":"4QgLsqEr37w","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 6~7차시","t":"조선 문화와 사람들의 생활 모습 알아보기 2"},{"vid":"HdOFpQ8XkXw","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 9차시","t":"조선 후기 달라진 사회 모습 알아보기 1"},{"vid":"YPclSl2jR7w","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 9차시","t":"조선 후기 달라진 사회 모습 알아보기 2"},{"vid":"kvd4Ka7-0EM","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 9차시","t":"조선 후기 달라진 사회 모습 알아보기 5"},{"vid":"HWYZMCJMhzU","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 10~11차시","t":"조선 후기 주변 나라들의 관계 알아보기 1"},{"vid":"w69aCB9fEo8","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 10~11차시","t":"조선 후기 주변 나라들의 관계 알아보기 2"},{"vid":"vyXygFJPI7k","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 12~13차시","t":"조선 후기 문화와 사람들의 생활 모습 알아보기 1"},{"vid":"qF5Bhaay_-M","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 12~13차시","t":"조선 후기 문화와 사람들의 생활 모습 알아보기 2"},{"vid":"5QKRk4F78nI","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 14차시","t":"개항 이후 근대화를 위한 노력 알아보기 1"},{"vid":"VC-HzP7raK4","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 14차시","t":"개항 이후 근대화를 위한 노력 알아보기 2"},{"vid":"1tuF4f-HA_c","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 14차시","t":"개항 이후 근대화를 위한 노력 알아보기 3"},{"vid":"IuiJ32jL-wE","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 14차시","t":"개항 이후 근대화를 위한 노력 알아보기 4"},{"vid":"smdwReNo63o","u":"초등 사회 5-2 · 2. 달라지는 시대, 변화하는 생활 모습 · 14차시","t":"개항 이후 근대화를 위한 노력 알아보기 5"},{"vid":"O-BKqSJFu-g","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 2차시","t":"일제의 침략과 나라를 지키기 위한 사람들의 노력 알아보기 1"},{"vid":"_JlcyNKrb9k","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 2차시","t":"일제의 침략과 나라를 지키기 위한 사람들의 노력 알아보기 2"},{"vid":"zCuL74zUB7U","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 2차시","t":"일제의 침략과 나라를 지키기 위한 사람들의 노력 알아보기 3"},{"vid":"oTU-mettwg0","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 2차시","t":"일제의 침략과 나라를 지키기 위한 사람들의 노력 알아보기 4"},{"vid":"uK1cF2l1kB8","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 2차시","t":"일제의 침략과 나라를 지키기 위한 사람들의 노력 알아보기 5"},{"vid":"SeWe74QWXYQ","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 2차시","t":"일제의 침략과 나라를 지키기 위한 사람들의 노력 알아보기 8"},{"vid":"R6AIhpY2thI","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 4~5차시","t":"3·1 운동 알아보기 1"},{"vid":"RP5RE1-KCW8","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 4~5차시","t":"3·1 운동 알아보기 2"},{"vid":"8IpfJgpQE50","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 9차시","t":"8·15 광복 알아보기"},{"vid":"5rzkUwkM80Q","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 12~13차시","t":"6·25 전쟁과 그 피해와 영향 알아보기 1"},{"vid":"Sp6JqL-8V4g","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 12~13차시","t":"6·25 전쟁과 그 피해와 영향 알아보기 2"},{"vid":"DM4c2qeAI24","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 12~13차시","t":"6·25 전쟁과 그 피해와 영향 알아보기 3"},{"vid":"W4PmEa4wK-o","u":"초등 사회 5-2 · 3. 식민 통치와 저항, 전쟁이 바꾼 사회와 생활 · 12~13차시","t":"6·25 전쟁과 그 피해와 영향 알아보기 4"},{"vid":"TqgCm2pWJEs","u":"초등 사회 5-1 · 1. 우리나라 국토 여행 · 9차시","t":"독도의 자연 환경 알아보기"},{"vid":"pKV4lcAeryQ","u":"초등 사회 5-1 · 1. 우리나라 국토 여행 · 12차시","t":"독도를 지키려는 노력 알아보기"}],"note":"유튜브에서 사용할 수 없는 동영상 5개가 숨겨져 있어, 목차에는 지금 볼 수 있는 52편만 담았어요.","noembed":true},{"num":7,"cat":"social","grade":"6학년","grades":[6],"source":"클래스로그","title":"클래스로그 6학년 사회 전단원","desc":"민주화 과정과 시사 상식 완벽 대비","kind":"playlist","pid":"PLjvzCZdbm_z111EGb-R_nUJcW9Bh6d4wR","vid":"U7BuhldCgC4","count":"36편","tags":"정치 발전 글로벌 무역 경제 민주화 6학년","id":7,"catLong":"초등 사회","thumb":"https://i.ytimg.com/vi/U7BuhldCgC4/hqdefault.jpg","sem":["6학년"],"chapters":[{"vid":"U7BuhldCgC4","u":"초등 사회 6-2 · 1. 세계의 자연환경 · 7차시","t":"세계의 기후 분포 살펴보기"},{"vid":"A8FUvUhqpHY","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 3차시","t":"가계와 기업의 역할 알아보기 1"},{"vid":"fCNq7RuVcmE","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 3차시","t":"가계와 기업의 역할 알아보기 2"},{"vid":"WL-62dldtcs","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 3차시","t":"가계와 기업의 역할 알아보기 3"},{"vid":"NV1XerYS2HY","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 3차시","t":"가계와 기업의 역할 알아보기 4"},{"vid":"xD_7QbxfElQ","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 5차시","t":"기업의 자유와 사회적 책임 알아보기"},{"vid":"_wghdz5k3lw","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 7차시","t":"우리나라의 경제성장 모습 살펴보기 1"},{"vid":"2XSh8BADHeE","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 7차시","t":"우리나라의 경제성장 모습 살펴보기 2"},{"vid":"vQpVtDTjTYc","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 7차시","t":"우리나라의 경제성장 모습 살펴보기 3"},{"vid":"imIZAIkZi5w","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 7차시","t":"우리나라의 경제성장 모습 살펴보기 4"},{"vid":"b5h0LOCRe-g","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 8차시","t":"경제성장이 우리 생활에 준 영향 알아보기"},{"vid":"xEbAJkHFIco","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 9차시","t":"경제성장 과정에서 발생한 문제와 해결 방안 찾아보기 1"},{"vid":"Gqtu3Zl-PH8","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 9차시","t":"경제성장 과정에서 발생한 문제와 해결 방안 찾아보기 2"},{"vid":"GmstJo6xBLI","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 11차시","t":"무역 알아보기"},{"vid":"d1B-agEtdgk","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 12차시","t":"무역이 우리 생활에 준 영향 알아보기"},{"vid":"FAt7mLtXNZY","u":"초등 사회 6-2 · 2. 시장경제와 국가 간 거래 · 13차시","t":"세계화 시대의 무역 사례 살펴보기"},{"vid":"xGk3ebMISFE","u":"초등 사회 6-2 · 3. 지구촌 사람들 · 6차시","t":"지구촌의 문제 알아보기"},{"vid":"gcChRtaSrfQ","u":"초등 사회 6-2 · 3. 지구촌 사람들 · 7차시","t":"지구촌의 평화와 발전을 위해 노력하는 방법 알아보기 1"},{"vid":"Lh-weP4xCac","u":"초등 사회 6-2 · 3. 지구촌 사람들 · 7차시","t":"지구촌의 평화와 발전을 위해 노력하는 방법 알아보기 2"},{"vid":"_AiH_4lQfAg","u":"초등 사회 6-2 · 3. 지구촌 사람들 · 7차시","t":"지구촌의 평화와 발전을 위해 노력하는 방법 알아보기 3"},{"vid":"1rULToaUKMA","u":"초등 사회 6-2 · 3. 지구촌 사람들 · 8차시","t":"지속가능한 미래를 위해 노력하는 방법 알아보기 1"},{"vid":"IZLcKG5CwaY","u":"초등 사회 6-2 · 3. 지구촌 사람들 · 8차시","t":"지속가능한 미래를 위해 노력하는 방법 알아보기 2"},{"vid":"KyOlbq6ccRM","u":"초등 사회 6-1 · 1. 평화 통일을 위한 노력, 민주화와 산업화 · 2차시","t":"분단으로 나타난 문제점 알아보기"},{"vid":"EQ1TBc_-aI0","u":"초등 사회 6-1 · 1. 평화 통일을 위한 노력, 민주화와 산업화 · 7차시","t":"4.19 혁명 알아보기"},{"vid":"_Ho1w46JTfs","u":"초등 사회 6-1 · 1. 평화 통일을 위한 노력, 민주화와 산업화 · 8차시","t":"5.18 민주화 운동 알아보기"},{"vid":"frUJgTLh-UA","u":"초등 사회 6-1 · 1. 평화 통일을 위한 노력, 민주화와 산업화 · 9차시","t":"6월 민주항쟁 알아보기"},{"vid":"WrqXwlk_w6A","u":"초등 사회 6-1 · 2. 민주주의와 시민 참여 · 2~3차시","t":"민주주의의 기초, 선거 알아보기"},{"vid":"bZrmvboCmVk","u":"초등 사회 6-1 · 2. 민주주의와 시민 참여 · 4~5차시","t":"민주주의에서 선거의 역할 알아보기"},{"vid":"5wS-c-3z2Do","u":"초등 사회 6-1 · 2. 민주주의와 시민 참여 · 10차시","t":"국회가 하는 일 알아보기"},{"vid":"w7zoJnmYEQI","u":"초등 사회 6-1 · 2. 민주주의와 시민 참여 · 12~13차시","t":"행정부가 하는 일 알아보기"},{"vid":"HftMUiZZQAU","u":"초등 사회 6-1 · 3. 지구, 대륙 그리고 국가들 · 4차시","t":"디지털 영상 지도 살펴보기"},{"vid":"TVzlek4XTHI","u":"초등 사회 6-1 · 3. 지구, 대륙 그리고 국가들 · 9차시","t":"아시아 1"},{"vid":"cxNdLJTzbIo","u":"초등 사회 6-1 · 3. 지구, 대륙 그리고 국가들 · 9차시","t":"아시아 2"},{"vid":"KYFeXCpjuMU","u":"초등 사회 6-1 · 3. 지구, 대륙 그리고 국가들 · 10차시","t":"오세아니아"},{"vid":"S5bVKTAP8RU","u":"초등 사회 6-1 · 3. 지구, 대륙 그리고 국가들 · 12차시","t":"북아메리카와 남아메리카"},{"vid":"TaZkALmTsAw","u":"초등 사회 6-1 · 3. 지구, 대륙 그리고 국가들 · 13차시","t":"아프리카"}],"note":"유튜브에서 사용할 수 없는 동영상 2개가 숨겨져 있어, 목차에는 지금 볼 수 있는 36편만 담았어요.","noembed":true},{"num":8,"cat":"science","grade":"3-1","grades":[3],"source":"미래엔","title":"미래엔 3-1 과학 차시별 개념","desc":"배추흰나비 관찰과 교과서 실험 해설","kind":"playlist","pid":"PLTLKL6ThErVLDAuIP0TA-cr_VoaBsd6am","vid":"JZGtNO2_Xc4","count":"21편","tags":"물질 성질 동물 한살이 배추흰나비 3학년 1학기","id":8,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/JZGtNO2_Xc4/hqdefault.jpg"},{"num":9,"cat":"science","grade":"3학년","grades":[3],"source":"클래스로그","title":"클래스로그 3학년 과학 전단원","desc":"3분 실사 클립으로 실험 예습·복습","kind":"playlist","pid":"PLjvzCZdbm_z1g7DG7cpcZYeWJEc3ASFSs","vid":"pKfKq0lHJAQ","count":"41편","tags":"물체 물질 자석 지구 달 3학년 실험","id":9,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/pKfKq0lHJAQ/hqdefault.jpg","noembed":true},{"num":10,"cat":"science","grade":"4-1","grades":[4],"source":"미래엔","title":"미래엔 4-1 과학 차시별 개념","desc":"지층의 원리와 강낭콩 싹 틔우기 탐구","kind":"playlist","pid":"PLTLKL6ThErVIkelqg0AfPh7QcoWsqL9TS","vid":"Oc2pRuc3dfI","count":"9편","tags":"지층 화석 식물 한살이 강낭콩 4학년 1학기","id":10,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/Oc2pRuc3dfI/hqdefault.jpg"},{"num":11,"cat":"science","grade":"4학년","grades":[4],"source":"클래스로그","title":"클래스로그 4학년 과학 전단원","desc":"화산·지진부터 그림자까지 차시별 정리","kind":"playlist","pid":"PLjvzCZdbm_z1bqpkwbnGRADX1pRgjYN04","vid":"ZCzd_YdPMBM","count":"47편","tags":"화산 지진 물의 여행 그림자 4학년","id":11,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/ZCzd_YdPMBM/hqdefault.jpg","noembed":true},{"num":12,"cat":"science","grade":"5-1","grades":[5],"source":"미래엔","title":"미래엔 5-1 과학 차시별 개념","desc":"고학년 물리·화학 기초 다지기","kind":"playlist","pid":"PLTLKL6ThErVIgogwUxsEmOWHt08OKYpUW","vid":"WtQXeCXmAjQ","count":"19편","tags":"온도 열 태양계 별 용해 5학년 1학기","id":12,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/WtQXeCXmAjQ/hqdefault.jpg"},{"num":13,"cat":"science","grade":"5학년","grades":[5],"source":"클래스로그","title":"클래스로그 5학년 과학 전단원","desc":"리트머스 실험과 소화·순환계 입체 학습","kind":"playlist","pid":"PLjvzCZdbm_z1NF7JFqTbRJBskS19xbSNs","vid":"7TtFDG5cg_4","count":"44편","tags":"생태계 환경 산 염기 인체 소화 순환 5학년","id":13,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/7TtFDG5cg_4/hqdefault.jpg","noembed":true},{"num":14,"cat":"science","grade":"6-1","grades":[6],"source":"미래엔","title":"미래엔 6-1 과학 차시별 개념","desc":"중등 과학으로 이어지는 핵심 개념","kind":"playlist","pid":"PLTLKL6ThErVJOyEfITDca7WMnkjwBo4UR","vid":"B3duu-lIHu4","count":"17편","tags":"지구 달 빛 렌즈 식물 구조 6학년 1학기","id":14,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/B3duu-lIHu4/hqdefault.jpg"},{"num":15,"cat":"science","grade":"6학년","grades":[6],"source":"클래스로그","title":"클래스로그 6학년 과학 전단원","desc":"6학년 최고 난이도 단원 완벽 마스터","kind":"playlist","pid":"PLjvzCZdbm_z2khxtXoTlpo2IJvE1uiwqI","vid":"lMgVwMMUFN4","count":"34편","tags":"전기 계절 변화 연소 6학년 난이도","id":15,"catLong":"초등 과학","thumb":"https://i.ytimg.com/vi/lMgVwMMUFN4/hqdefault.jpg","noembed":true},{"num":16,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"클래스로그","title":"클래스로그 역사 사전","desc":"고조선부터 대한민국까지 인물·사건 흐름","kind":"playlist","pid":"PLjvzCZdbm_z0GcXJFlz2TSkJWofLGqr0W","vid":"yM7WAG1L5-w","count":"147편","tags":"한국사 역사사전 고조선 대한민국 인물 사건 테마","id":16,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/yM7WAG1L5-w/hqdefault.jpg","noembed":true},{"num":17,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"EBS","title":"EBS 스토리 한국사","desc":"EBS 교재 연계 영상으로 전체 흐름 정리","kind":"playlist","pid":"PL_gpLf9VtGfBtQ0Vg4ezDhCteGORANX1R","vid":"iK2e2OQP2Co","count":"7편","tags":"EBS 스토리 한국사 교재 연계 로드맵","id":17,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/iK2e2OQP2Co/hqdefault.jpg"},{"num":18,"cat":"history","grade":"4~6","grades":[4,5,6],"source":"최태성 초등TV","title":"큰별쌤 초등 한국사 개념","desc":"초등 한능검 대비 판서·통강 개념 강의","kind":"playlist","pid":"PLp9pLtKPJuPaFA_yjPFFa60fTqJeffzc0","vid":"bJ0LDaYT7Tw","count":"22편","note":"원래 연결된 KBS키즈 재생목록이 삭제되어, 큰별쌤(최태성)의 초등 한국사 개념 재생목록으로 연결했어요.","fixed":true,"tags":"큰별쌤 최태성 KBS키즈 초등 한국사 한능검 판서 통강","id":18,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/bJ0LDaYT7Tw/hqdefault.jpg"},{"num":19,"cat":"history","grade":"4~6","grades":[4,5,6],"source":"최태성 초등TV","title":"최태성 초등TV 채널","desc":"초등 눈높이 한국사·한능검 영상 모음","kind":"channel","vid":"QxnOzn5FXTY","url":"https://www.youtube.com/@최태성초등TV/videos","avatar":"https://yt3.googleusercontent.com/idBsQqcgejdk0XRxgPy9g5k-JifCtHrcCQqr6-UADTw8LRi4mlRjTIxDMTwdsEllfhFzW4gtQAc=s176-c-k-c0x00ffffff-no-rj","note":"채널 카드예요. 인앱에서는 최신 영상이 재생되고, 채널 전체는 아래 버튼에서 볼 수 있어요.","tags":"최태성 초등TV 채널 한능검 4학년 5학년 6학년","id":19,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/QxnOzn5FXTY/hqdefault.jpg"},{"num":20,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"지니스쿨","title":"지니키즈 역사 채널","desc":"애니메이션으로 인물과 사건 흐름 파악","kind":"channel","vid":"RPMqTXCtlDo","url":"https://www.youtube.com/@geni_history","avatar":"https://yt3.googleusercontent.com/ytc/AIdro_kZz4gcXFGhdi9glyffWVM94lS1RkDWN7YsFdw8JBAzXg=s176-c-k-c0x00ffffff-no-rj","note":"채널 카드예요. 인앱에서는 최신 영상이 재생되고, 채널 전체는 아래 버튼에서 볼 수 있어요.","tags":"지니키즈 지니스쿨 역사 애니메이션 입문","id":20,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/RPMqTXCtlDo/hqdefault.jpg"},{"num":21,"cat":"history","grade":"전학년","grades":[3,4,5,6],"source":"최태성 유아TV","title":"어린이 조선왕조실록","desc":"조선 왕과 사건을 이야기로 쉽게","kind":"playlist","pid":"PLiDxa1RAwEQtrtYDluSgc6pzqnJ1uLwOs","vid":"9sAfTrqpOiE","count":"32편","tags":"조선시대 조선왕조실록 왕 인물 한국사","id":21,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/9sAfTrqpOiE/hqdefault.jpg"},{"num":22,"cat":"history","grade":"3~4","grades":[3,4,5,6],"source":"최태성 유아TV","title":"처음 만나는 삼국유사","desc":"삼국유사 속 이야기를 만화로 재밌게","kind":"playlist","pid":"PLiDxa1RAwEQuVGIFotbLSdk2jmWHWB_33","vid":"LGAgP0n85OU","count":"30편","tags":"고대사 삼국유사 삼국시대 설화 만화","id":22,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/LGAgP0n85OU/hqdefault.jpg"},{"num":23,"cat":"history","grade":"3~6","grades":[3,4,5,6],"source":"EBS 키즈","title":"시간을 달리는 세계사","desc":"시간여행 콘셉트로 세계사 결정적 순간","kind":"playlist","pid":"PLKDPDirFfxZS8L33EQ0-_RHzlNzzFFDwA","vid":"FZv8uaKRuNU","count":"28편","tags":"세계사 세계문명 EBS놀이터 시간여행","id":23,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/FZv8uaKRuNU/hqdefault.jpg"},{"num":24,"cat":"history","grade":"2~6","grades":[3,4,5,6],"source":"지니스쿨","title":"이야기 세계사 World History","desc":"애니메이션 스토리로 세계사 배경지식 확장","kind":"playlist","pid":"PL9963YeJsUgDAGSByOa7FkOun6yjK1YjF","vid":"sP99_97-mXU","count":"31편","tags":"세계사 고대 근현대 애니메이션 지니스쿨","id":24,"catLong":"한국사·세계사","thumb":"https://i.ytimg.com/vi/sP99_97-mXU/hqdefault.jpg"},{"num":25,"cat":"hanja","grade":"전학년","grades":[3,4,5,6],"source":"우리들의 초등학교","title":"5분 한자 시리즈","desc":"5분 컷으로 한자 원리부터 어휘 확장","kind":"playlist","pid":"PL6ZqXU6Jpq32zhgUmfv9DzbpZetHTuoAz","vid":"xlWbrdEhcvw","count":"25편","tags":"5분한자 한자 원리 획순 낱말 어휘","id":25,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/xlWbrdEhcvw/hqdefault.jpg"},{"num":26,"cat":"hanja","grade":"3~4","grades":[3,4,5,6],"source":"반디랑블록한자","title":"하루 10분 반디랑 블록한자","desc":"블록처럼 결합하는 한자 원리 10분 루틴","kind":"playlist","pid":"PLrzJCABisjuNDGaO3Zlz5cPlOYrIEqcHm","vid":"vNbSegazMUc","count":"30편","tags":"블록한자 반디랑 10분 복습 한자 원리","id":26,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/vNbSegazMUc/hqdefault.jpg"},{"num":27,"cat":"hanja","grade":"전학년","grades":[3,4,5,6],"source":"홍선생미술","title":"한자 좋아좋아 (동요)","desc":"노래로 훈음이 저절로 붙는 한자 동요","kind":"playlist","pid":"PLmUqRfwjACrbW25371IqH-dygBSCzyaNd","vid":"OGyQQ5drGgU","count":"26편","note":"원래 연결된 '동요로 외우는 한자' 재생목록이 삭제되어, 같은 홍선생미술 채널의 '한자 좋아좋아'로 연결했어요.","fixed":true,"tags":"홍선생미술 한자동요 8급 4급 급수 노래 훈음","id":27,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/OGyQQ5drGgU/hqdefault.jpg"},{"num":28,"cat":"hanja","grade":"전학년","grades":[3,4,5,6],"source":"신비한자","title":"신비한자 급수별 챈트","desc":"8급부터 급수별로 노래·챈트 반복","kind":"playlist","pid":"PLIbkNhctSDWHX2QD4A1BV0pVfHuj0_ow8","vid":"-b_KTEva-LE","count":"8편","variants":[{"label":"8급","kind":"playlist","id":"PLIbkNhctSDWHX2QD4A1BV0pVfHuj0_ow8","vid":"-b_KTEva-LE","count":"8편"},{"label":"7급","kind":"playlist","id":"PLIbkNhctSDWFJ2gOGRWoRKXGDfXyxp_pr","vid":"gTpebJlVOrc","count":"8편"},{"label":"6급","kind":"playlist","id":"PLIbkNhctSDWF6LQjchLxzDNqg0nWfJTfQ","vid":"7DEX3vb7vNo","count":"8편"}],"note":"5급 재생목록은 원래 링크가 삭제되어 지금은 8·7·6급까지 볼 수 있어요.","fixed":true,"tags":"신비한자 챈트 8급 7급 6급 5급 급수 한자","id":28,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/-b_KTEva-LE/hqdefault.jpg"},{"num":29,"cat":"hanja","grade":"3~4","grades":[3,4,5,6],"source":"주니토니","title":"주니토니 8급·7급 한자동요","desc":"캐릭터 동요로 첫 한자를 즐겁게","kind":"video","vid":"bmucw9XFFWg","count":"동요 2편","variants":[{"label":"8급","kind":"video","id":"bmucw9XFFWg","vid":"bmucw9XFFWg","count":"동요"},{"label":"7급","kind":"video","id":"qk6ofM_wwB0","vid":"qk6ofM_wwB0","count":"동요"}],"tags":"주니토니 한자동요 8급 7급 키즈캐슬","id":29,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/bmucw9XFFWg/hqdefault.jpg"},{"num":30,"cat":"hanja","grade":"2~6","grades":[3,4,5,6],"source":"EBS Learning","title":"천하무적 한자 900","desc":"상형 원리와 실사·애니로 어휘력 강화","kind":"playlist","pid":"PLQvhoNAcU3iFwkmjJ1qKfU0heiMg3i88W","vid":"r0Z2U2LNIJA","count":"60편","tags":"EBS 천하무적 한자 900 교육부 기초한자 상형","id":30,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/r0Z2U2LNIJA/hqdefault.jpg"},{"num":31,"cat":"hanja","grade":"3~6","grades":[3,4,5,6],"source":"한글어휘","title":"초등 사자성어 100개 모음","desc":"비문학·사회 지문에 꼭 나오는 필수 성어","kind":"playlist","pid":"PLJVNgCEQC0prcW6zg3Guu9Ic8HZBWt1HM","vid":"yt3hGlZuZYQ","count":"11편","tags":"사자성어 성어 국어 독해 비문학 어휘","id":31,"catLong":"한자·사자성어","thumb":"https://i.ytimg.com/vi/yt3hGlZuZYQ/hqdefault.jpg"},{"num":32,"cat":"english","grade":"전학년","grades":[3,4,5,6],"source":"영단어 스캐너","title":"교육부 지정 초등 영단어 800","desc":"원어민 발음·챈트로 하루 10개씩 주제·품사별 암기","kind":"playlist","pid":"PL8ls7iyiaZK8yKGvjsL3J6h9hg7W49Lee","vid":"q6-izT1T5AQ","count":"8편","tags":"영단어 800 교육부 지정 필수 단어 원어민 발음 챈트 하루10개 주제별 품사별 JSPVISION","id":32,"catLong":"초등 영어","thumb":"https://i.ytimg.com/vi/q6-izT1T5AQ/hqdefault.jpg"},{"num":33,"cat":"english","grade":"1~3","grades":[3],"source":"레벨업잉글리쉬","title":"생활영어 TOP 100 섀도잉","desc":"미국 초등 저학년 표현을 듣고 그대로 따라 말하기","kind":"video","vid":"4Sq4Tc6ZmLo","count":"단편","tags":"생활영어 섀도잉 쉐도잉 TOP100 학교생활 감정 표현 일상 대화 입에 붙이기","id":33,"catLong":"초등 영어","thumb":"https://i.ytimg.com/vi/4Sq4Tc6ZmLo/hqdefault.jpg"},{"num":34,"cat":"english","grade":"3~6","grades":[3,4,5,6],"source":"영어 자동 학습","title":"초등 교과서 영어 문장","desc":"교과서 빈출 문장 패턴과 일상 롤플레이","kind":"playlist","pid":"PLGiEkHihHvrAtdSPnm74I85E6WW76_6Ef","vid":"q1DlSxRpvjU","count":"5편","tags":"교과서 회화 문장 패턴 롤플레이 잉글리시보카 English_voca 학교 영어 시간","id":34,"catLong":"초등 영어","thumb":"https://i.ytimg.com/vi/q1DlSxRpvjU/hqdefault.jpg"},{"num":35,"cat":"english","grade":"3~6","grades":[3,4,5,6],"source":"길벗스쿨","title":"기적의 초등 영문법 저자 직강","desc":"중등 가기 전 품사·시제 구멍을 5분 컷으로 정리","kind":"playlist","pid":"PLWkyee4Ewqy669ri4qHQB2IXy7pQOpN-e","vid":"veEg34MFwsc","count":"45편","tags":"기초 영문법 기적의초등영문법 저자 직강 품사 시제 중등 대비 문법","id":35,"catLong":"초등 영어","thumb":"https://i.ytimg.com/vi/veEg34MFwsc/hqdefault.jpg"}],"cats":{"social":{"name":"사회","long":"초등 사회","emoji":"🗺️","c1":"#3DDC97","c2":"#12B886","ink":"#0B7A5A","soft":"#E7FBF3"},"science":{"name":"과학","long":"초등 과학","emoji":"🔬","c1":"#5AC8FA","c2":"#4F7CF7","ink":"#2B4FCB","soft":"#EAF2FF"},"history":{"name":"역사","long":"한국사·세계사","emoji":"📜","c1":"#FFC94D","c2":"#F97E45","ink":"#B4511B","soft":"#FFF3E4"},"hanja":{"name":"한자","long":"한자·사자성어","emoji":"🀄","c1":"#C79BFF","c2":"#8B5CF6","ink":"#5B33C4","soft":"#F3EDFF"},"english":{"name":"영어","long":"초등 영어","emoji":"🔤","c1":"#FF9EB5","c2":"#F2557F","ink":"#B02452","soft":"#FFF0F4"}}};
 const ITEMS = DATA.items;
 const CATS = DATA.cats;
 const KEY = 'guide31_done_v1';
 
 let currentFilter = 'all';
 let currentGrade = 'all';
+let currentSem = 'all';
 let searchQuery = '';
 let orderItems = [...ITEMS];
 let doneSet = new Set();
@@ -392,6 +455,34 @@ const progressFill = document.getElementById('progressFill');
 const progressLabel = document.getElementById('progressLabel');
 
 function catCount(c) { return ITEMS.filter(i => i.cat === c).length; }
+
+const SEMS = [
+  { k: 'all', l: '전체' },
+  { k: '3-1', l: '3-1' },
+  { k: '3-2', l: '3-2' },
+  { k: '4-1', l: '4-1' },
+  { k: '4-2', l: '4-2' },
+  { k: '5학년', l: '5학년' },
+  { k: '6학년', l: '6학년' }
+];
+
+function semCount(k) {
+  const soc = ITEMS.filter(i => i.cat === 'social');
+  if (k === 'all') return soc.length;
+  return soc.filter(i => (i.sem || []).includes(k)).length;
+}
+
+function buildSems() {
+  document.getElementById('sems').innerHTML = SEMS.map(s =>
+    `<button class="schip ${s.k === currentSem ? 'active' : ''}" data-sem="${s.k}">${s.l}</button>`
+  ).join('');
+}
+
+function syncFilterRows() {
+  const social = currentFilter === 'social';
+  document.getElementById('sems').hidden = !social;
+  document.getElementById('grades').hidden = social;
+}
 
 function buildPills() {
   const pills = [
@@ -433,10 +524,12 @@ function getFiltered() {
       if (it.cat !== currentFilter) return false;
     }
     if (currentFilter === 'done' && !doneSet.has(it.id)) return false;
+    if (currentFilter === 'social' && currentSem !== 'all' && !(it.sem || []).includes(currentSem)) return false;
     if (currentGrade !== 'all' && !it.grades.includes(Number(currentGrade))) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const hay = (it.title + ' ' + it.desc + ' ' + (it.tags || '') + ' ' + it.source + ' ' + it.grade + ' ' + it.catLong).toLowerCase();
+      const chapText = (it.chapters || []).map(c => (c.u || '') + ' ' + c.t).join(' ');
+      const hay = (it.title + ' ' + it.desc + ' ' + (it.tags || '') + ' ' + it.source + ' ' + it.grade + ' ' + it.catLong + ' ' + chapText).toLowerCase();
       return hay.includes(q);
     }
     return true;
@@ -465,9 +558,9 @@ function cardHTML(it) {
           <span class="chip chip-src">${it.source}</span>
           ${topBadge}
         </div>
-        ${isChannel ? '' : '<div class="play-orb">▶</div>'}
+        ${isChannel ? '' : `<div class="play-orb">${it.noembed ? '↗' : '▶'}</div>`}
         <span class="cover-num">${num}</span>
-        <span class="cover-count">${isChannel ? '채널' : it.count}</span>
+        <span class="cover-count">${isChannel ? '채널' : it.count}${(it.chapters && it.chapters.length) ? ' · 목차' : ''}</span>
       </div>
       <div class="card-body">
         <div>
@@ -493,9 +586,12 @@ function render() {
     english: `🔤 초등 영어 ${list.length}선`,
     done: `⭐ 완주한 ${list.length}선`
   };
-  sectionTitle.textContent = titles[currentFilter] || `전체 ${ITEMS.length}선`;
+  sectionTitle.textContent = (currentFilter === 'social' && currentSem !== 'all')
+    ? `🗺️ 초등 사회 ${currentSem} ${list.length}선`
+    : (titles[currentFilter] || `전체 ${ITEMS.length}선`);
   const baseTotal = currentFilter === 'all' ? ITEMS.length
-    : currentFilter === 'done' ? doneSet.size : catCount(currentFilter);
+    : currentFilter === 'done' ? doneSet.size
+    : currentFilter === 'social' ? semCount(currentSem) : catCount(currentFilter);
   sectionDesc.textContent = !list.length ? '조건에 맞는 항목이 없어요'
     : (list.length === baseTotal ? '카드를 누르면 앱 안에서 바로 재생돼요'
     : `${list.length}선 골라봤어요 · 카드를 누르면 재생돼요`);
@@ -515,7 +611,7 @@ function toggleDone(id) {
 }
 
 /* ---------------- in-app player ---------------- */
-const player = { open: false, playlist: [], index: 0, variant: 0 };
+const player = { open: false, playlist: [], index: 0, variant: 0, chapter: null };
 const backdrop = document.getElementById('playerBackdrop');
 const frameEl = document.getElementById('playerFrame');
 const eyebrowEl = document.getElementById('playerEyebrow');
@@ -542,20 +638,67 @@ function ytUrl(it, src) {
   return 'https://www.youtube.com/watch?v=' + (src.vid || src.id);
 }
 
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function activeChapter(it) {
+  if (!it.chapters || !it.chapters.length || player.chapter == null) return null;
+  return it.chapters[player.chapter] || null;
+}
+
+let chapOpen = true;
+
+function renderChapters(it) {
+  const box = document.getElementById('chapters');
+  const list = document.getElementById('chapList');
+  if (!it.chapters || !it.chapters.length) {
+    box.hidden = true;
+    list.innerHTML = '';
+    return;
+  }
+  box.hidden = false;
+  document.getElementById('chapTotal').textContent = it.chapters.length + '개';
+  document.getElementById('chapList').innerHTML = it.chapters.map((c, i) => {
+    const inner = `<span class="idx">${String(i + 1).padStart(2, '0')}</span>
+       <span class="body">${c.u ? `<span class="u">${esc(c.u)}</span>` : ''}<span class="t">${esc(c.t)}</span></span>`;
+    return it.noembed
+      ? `<a class="chap ext" href="https://www.youtube.com/watch?v=${c.vid}${it.pid ? '&list=' + it.pid : ''}" target="_blank" rel="noopener" data-chap="${i}">${inner}<span class="go">↗</span></a>`
+      : `<button class="chap ${player.chapter === i ? 'active' : ''}" data-chap="${i}">${inner}</button>`;
+  }).join('');
+  list.hidden = !chapOpen;
+  document.getElementById('chapToggle').textContent = chapOpen ? '접기' : '펼치기';
+}
+
 function loadMedia() {
   const it = currentItem();
   if (!it) return;
   const c = CATS[it.cat];
   const src = activeSource(it);
-  const embed = src.kind === 'playlist'
-    ? `https://www.youtube.com/embed/videoseries?list=${src.id}&autoplay=1&rel=0&playsinline=1`
-    : `https://www.youtube.com/embed/${src.vid || src.id}?autoplay=1&rel=0&playsinline=1&modestbranding=1`;
-  frameEl.innerHTML = `<iframe src="${embed}" title="${it.title} 영상" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  const chap = activeChapter(it);
+  let embed;
+  if (it.noembed) {
+    frameEl.innerHTML = `<div class="poster">
+        <img src="${it.thumb}" alt="" />
+        <div class="poster-shade"></div>
+        <div class="poster-msg"><div class="box"><span class="big">↗</span><span>이 채널은 앱 안 재생을 막아 두었어요</span><span class="sub">목차에서 단원을 누르면 유튜브로 열립니다</span></div></div>
+      </div>`;
+  } else {
+    if (chap) {
+      embed = `https://www.youtube.com/embed/${chap.vid}?list=${it.pid || ''}&autoplay=1&rel=0&playsinline=1`;
+    } else if (src.kind === 'playlist') {
+      embed = `https://www.youtube.com/embed/videoseries?list=${src.id}&autoplay=1&rel=0&playsinline=1`;
+    } else {
+      embed = `https://www.youtube.com/embed/${src.vid || src.id}?autoplay=1&rel=0&playsinline=1&modestbranding=1`;
+    }
+    frameEl.innerHTML = `<iframe src="${embed}" title="${esc(it.title)} 영상" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  }
 
   eyebrowEl.textContent = '#' + String(it.num).padStart(2, '0') + ' · ' + c.name + ' · ' + it.grade;
   eyebrowEl.style.color = c.c1;
   pTitle.textContent = it.title;
-  pSub.textContent = it.source + ' · ' + (src.label ? src.label + ' · ' : '') + (src.count || it.count || '');
+  pSub.textContent = it.source + ' · ' + (src.label ? src.label + ' · ' : '')
+    + (chap ? `단원 ${player.chapter + 1}/${it.chapters.length} · ` : '') + (src.count || it.count || '');
   pNote.hidden = !it.note;
   pNote.textContent = it.note || '';
 
@@ -569,8 +712,9 @@ function loadMedia() {
     variantsEl.innerHTML = '';
   }
 
-  openYt.href = ytUrl(it, src);
-  openYt.textContent = it.kind === 'channel' ? '채널 열기' : '유튜브에서 보기';
+  openYt.href = chap ? ('https://www.youtube.com/watch?v=' + chap.vid + (it.pid ? '&list=' + it.pid : '')) : ytUrl(it, src);
+  openYt.textContent = it.kind === 'channel' ? '채널 열기' : (it.noembed ? '재생목록 유튜브에서 열기' : '유튜브에서 보기');
+  renderChapters(it);
   pCount.textContent = (player.index + 1) + ' / ' + player.playlist.length;
   prevBtn.disabled = player.index <= 0;
   nextBtn.disabled = player.index >= player.playlist.length - 1;
@@ -596,6 +740,7 @@ function openPlayer(id, playlist) {
   player.playlist = list;
   player.index = idx;
   player.variant = 0;
+  player.chapter = null;
   player.open = true;
   backdrop.classList.add('open');
   document.body.classList.add('locked');
@@ -614,6 +759,7 @@ function step(delta) {
   if (ni < 0 || ni >= player.playlist.length) return;
   player.index = ni;
   player.variant = 0;
+  player.chapter = null;
   loadMedia();
 }
 
@@ -632,9 +778,37 @@ document.getElementById('pills').addEventListener('click', (e) => {
   const pill = e.target.closest('.pill');
   if (!pill) return;
   currentFilter = pill.dataset.filter;
+  currentSem = 'all';
+  currentGrade = 'all';
   buildPills();
+  buildSems();
+  buildGrades();
+  syncFilterRows();
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+document.getElementById('sems').addEventListener('click', (e) => {
+  const chip = e.target.closest('.schip');
+  if (!chip) return;
+  currentSem = chip.dataset.sem;
+  buildSems();
+  render();
+});
+
+document.getElementById('chapList').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-chap]');
+  if (!b) return;
+  const it = currentItem();
+  if (it && it.noembed) return;   // 임베드 금지 채널은 링크로 유튜브에서 바로 열린다
+  player.chapter = Number(b.dataset.chap);
+  loadMedia();
+});
+
+document.getElementById('chapToggle').addEventListener('click', () => {
+  chapOpen = !chapOpen;
+  const it = currentItem();
+  if (it) renderChapters(it);
 });
 
 document.getElementById('grades').addEventListener('click', (e) => {
@@ -713,7 +887,9 @@ function toast(msg) {
 }
 
 buildPills();
+buildSems();
 buildGrades();
+syncFilterRows();
 saveDone();
 render();
 </script>
