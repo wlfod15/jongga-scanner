@@ -492,7 +492,11 @@ function render() {
     done: `⭐ 완주한 ${list.length}선`
   };
   sectionTitle.textContent = titles[currentFilter] || `전체 ${ITEMS.length}선`;
-  sectionDesc.textContent = list.length ? '카드를 누르면 앱 안에서 바로 재생돼요' : '조건에 맞는 항목이 없어요';
+  const baseTotal = currentFilter === 'all' ? ITEMS.length
+    : currentFilter === 'done' ? doneSet.size : catCount(currentFilter);
+  sectionDesc.textContent = !list.length ? '조건에 맞는 항목이 없어요'
+    : (list.length === baseTotal ? '카드를 누르면 앱 안에서 바로 재생돼요'
+    : `${list.length}선 골라봤어요 · 카드를 누르면 재생돼요`);
   document.getElementById('pickBtn').disabled = list.length === 0;
   document.getElementById('pickBtn').style.opacity = list.length ? '1' : '.45';
   grid.innerHTML = list.length
