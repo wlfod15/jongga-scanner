@@ -424,6 +424,19 @@
   let readSet = new Set();
   try {
     readSet = new Set((JSON.parse(localStorage.getItem('eq_read_books') || '[]') || []).map(Number));
+    /* 86권(생일 씨·크리스마스 씨 포함) 시절의 읽음 표시를 84권 id로 옮긴다 */
+    if (localStorage.getItem('eq_read_schema') !== '84') {
+      const moved = new Set();
+      readSet.forEach(function (id) {
+        if (id <= 47) moved.add(id);
+        else if (id === 50) moved.add(48);          /* Mr. Adventure */
+        else if (id >= 51) moved.add(id - 2);       /* Little Miss #01~#36 */
+        /* id 48·49 = 생일 씨·크리스마스 씨: 실물 세트에 없어 제외 */
+      });
+      readSet = moved;
+      localStorage.setItem('eq_read_books', JSON.stringify([...readSet]));
+      localStorage.setItem('eq_read_schema', '84');
+    }
   } catch (e) { readSet = new Set(); }
 
   const grid = document.getElementById('grid');
