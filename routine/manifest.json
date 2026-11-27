@@ -1,0 +1,15 @@
+{
+  "name": "바빠맘 초등 루틴 보드",
+  "short_name": "루틴 보드",
+  "description": "아이들 루틴 체크보드 & 주간 공부 시간표 — 상점·벌점, 보상 게이지, 드래그 시간표",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#F7F3EA",
+  "theme_color": "#F7F3EA",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

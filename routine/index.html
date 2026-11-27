@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F3EA">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="바빠맘 초등 루틴 보드 — 아이들 루틴 체크보드 & 주간 공부 시간표, 상점·벌점, 보상 게이지, 드래그 시간표">
+<title>바빠맘 초등 루틴 보드</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">⏰</div>
+      <div class="brand-text">
+        <div class="brand-title">바빠맘 루틴 보드</div>
+        <div class="brand-sub" id="brandSub">불러오는 중…</div>
+      </div>
+    </div>
+    <div class="child-tabs" id="childTabs" role="tablist" aria-label="아이 선택"></div>
+    <div class="top-actions">
+      <button class="sync-badge" id="syncBadge" type="button" data-act="sync" title="동기화 설정">💾 로컬 저장</button>
+      <button class="icon-btn" id="btnWake" type="button" data-act="wakeLock" title="화면 켜짐 유지">💡 화면 유지</button>
+      <button class="icon-btn" id="btnMom" type="button" data-act="mom">🔒 엄마 관리</button>
+    </div>
+  </header>
+
+  <nav class="viewtabs" id="viewTabs" aria-label="화면 선택">
+    <button class="vtab active" type="button" data-act="view" data-view="today">✅ 오늘의 루틴</button>
+    <button class="vtab" type="button" data-act="view" data-view="week">🗓️ 주간 시간표</button>
+    <button class="vtab" type="button" data-act="view" data-view="mom">🔒 엄마 관리</button>
+  </nav>
+
+  <main>
+    <section id="view-today" class="view" aria-label="오늘의 루틴"></section>
+    <section id="view-week" class="view" aria-label="주간 시간표" hidden></section>
+    <section id="view-mom" class="view" aria-label="엄마 관리" hidden></section>
+  </main>
+
+  <footer class="foot">
+    <b>바빠맘</b> <span class="handle">(@busy_m.o.m)</span> 초등 루틴 보드 · 이 기기에 자동 저장됩니다
+  </footer>
+</div>
+
+<div class="dock" id="dock" aria-live="polite"></div>
+<div id="modalRoot" class="modal-root"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<noscript><p style="padding:24px;font-family:sans-serif">이 화면을 보려면 브라우저의 JavaScript를 켜 주세요.</p></noscript>
+
+<script src="store.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
