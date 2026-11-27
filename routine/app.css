@@ -451,12 +451,21 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--good)}
 
 /* ---------- responsive ---------- */
 @media (max-width:1180px){
-  .dash{grid-template-columns:300px minmax(0,1fr)}
+  .dash{grid-template-columns:262px minmax(0,1fr) 300px}
   .scorecard{grid-column:1;grid-row:1}
   .graphcard{grid-column:2;grid-row:1}
-  .timelinecard{grid-column:1;grid-row:2}
-  .checkcard{grid-column:1 / span 2;grid-row:3}
+  .timelinecard{grid-column:3;grid-row:1}
+  .checkcard{grid-column:1 / span 2;grid-row:2}
+  .promisecard{grid-column:3;grid-row:2}
+  .weektop{grid-template-columns:minmax(0,1fr) 290px}
+}
+@media (max-width:1000px){
+  .dash{grid-template-columns:minmax(0,1fr) 300px}
+  .scorecard{grid-column:1;grid-row:1}
+  .graphcard{grid-column:1;grid-row:2}
+  .timelinecard{grid-column:2;grid-row:1}
   .promisecard{grid-column:2;grid-row:2}
+  .checkcard{grid-column:1 / span 2;grid-row:3}
   .weektop{grid-template-columns:1fr}
 }
 @media (max-width:860px){
