@@ -888,7 +888,7 @@
       '<button class="btn" data-act="sync">☁️ 동기화 설정</button></div>' +
       '<div class="mrow"><button class="btn" data-act="export">⬇️ 백업 내보내기</button><button class="btn" data-act="import">⬆️ 가져오기</button>' +
       '<button class="btn bad" data-act="reset">데이터 초기화</button></div>' +
-      '<div class="momnote" style="margin-top:6px">데이터 초기화는 모든 체크·점수 기록을 지웁니다. 먼저 백업해 두세요.</div></div>';
+      '<div class="momnote" style="margin-top:6px">데이터 초기화는 모든 체크·점수 기록을 지웁니다. 먼저 백업해 두세요.<br>· 처음 PIN은 <b>8282</b>이고 [아이 설정]에서 바꿀 수 있어요.</div></div>';
   }
   function renderMom() {
     var child = curChild(), ch = childOf(child);
@@ -1225,7 +1225,7 @@
     var keys = '';
     [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function (n) { keys += '<button class="pinkey" data-act="pinKey" data-k="' + n + '">' + n + '</button>'; });
     keys += '<button class="pinkey" data-act="pinKey" data-k="clear">C</button><button class="pinkey" data-act="pinKey" data-k="0">0</button><button class="pinkey" data-act="pinKey" data-k="del">⌫</button>';
-    openModal('<h2>🔒 엄마 관리</h2><div class="sh-sub">PIN 4자리를 입력해 주세요. (처음 기본값 8282)</div>' +
+    openModal('<h2>🔒 엄마 관리</h2><div class="sh-sub">엄마만 아는 4자리 PIN을 입력해 주세요.</div>' +
       '<div class="pin-dots" id="pinDots">' + pinDotsHTML(0) + '</div><div class="pin-msg" id="pinMsg"></div>' +
       '<div class="pinpad">' + keys + '</div><div class="sheet-foot"><button class="btn" data-act="closeModal">취소</button></div>');
   }
