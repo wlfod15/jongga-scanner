@@ -60,7 +60,7 @@
     view: 'today', period: 'day', unlocked: false,
     pin: '', edit: null, dayPick: null, planDraft: null, drag: null,
     confirmCb: null, poolDay: null, lastDay: U.today(),
-    routineOpen: false, dragEnd: 0
+    dragEnd: 0, fixedOpen: false, manageOpen: false, modalKind: ''
   };
   var timers = {};      /* key -> {kind,mode,label,emoji,startedAt,targetSec,itemId,child} */
   var alarm = { active: false, cfg: null };
@@ -673,16 +673,6 @@
   }
 
   /* ---------------- WEEK VIEW ---------------- */
-  function poolTile(it) {
-    var isRoutine = it.kind === 'routine';
-    var addBtn = isRoutine ? '' : '<button class="tile-b" data-act="days" data-id="' + it.id + '" aria-label="요일 선택">＋</button>';
-    return '<div class="tile" style="--c:' + it.color + '" data-act="editItem" data-id="' + it.id + '" role="button" tabindex="0" aria-label="' + esc(it.name) + ' 수정"' +
-      ' data-drag-item="' + it.id + '" data-drag-from="pool"' + (isRoutine ? ' data-nodrag="1"' : '') + '>' +
-      '<span class="tile-dot" aria-hidden="true"></span>' +
-      '<span class="tile-e">' + esc(it.emoji || '') + '</span>' +
-      '<span class="tile-n">' + esc(it.name) + '</span>' +
-      (it.minutes ? '<span class="tile-d">' + it.minutes + '분</span>' : '') + addBtn + '</div>';
-  }
   function dayChip(it, dk) {
     return '<div class="chip" style="--c:' + it.color + '" data-drag-item="' + it.id + '" data-drag-from="' + dk + '">' +
       '<span class="chip-e">' + esc(it.emoji || '') + '</span>' +
@@ -692,35 +682,109 @@
   }
 
   function renderWeek() {
-    var s = st(), child = curChild(), ch = childOf(child);
-    var sched = s.schedule[child] || {};
-    var pool = { routine: [], study: [], promise: [] };
-    s.items.forEach(function (it) { (pool[it.kind] || pool.study).push(it); });
-
-    var html = '<div class="weektop">';
-    html += '<div class="card poolcard">';
-    html += '<div class="card-head"><h3>🧩 공부·루틴 리스트</h3>' +
-      '<div class="mrow"><button class="mini" data-act="addRoutine">+ 생활 루틴</button><button class="mini good" data-act="addItem">+ 새 항목</button></div></div>';
-    html += '<div class="weektip" style="margin-bottom:7px">카드를 요일 칸으로 끌어다 놓으면 배치돼요 · 카드를 누르면 수정</div>';
-    var rOpen = !!ui.routineOpen;
-    html += '<div class="pool-group">' +
-      '<button type="button" class="pool-toggle' + (rOpen ? ' open' : '') + '" data-act="toggleRoutinePool" aria-expanded="' + (rOpen ? 'true' : 'false') + '" aria-controls="poolRoutine">' +
-      '<span class="pt-title">🌅 생활 루틴</span><span class="pt-meta">' + pool.routine.length + '개 · 매일 자동</span>' +
-      '<span class="pt-cue">' + (rOpen ? '접기' : '펼치기') + '</span></button>' +
-      '<div class="pool" id="poolRoutine" data-routine-pool' + (rOpen ? '' : ' hidden') + '>' +
-      (pool.routine.length ? pool.routine.map(poolTile).join('') : '<span class="empty">없음</span>') + '</div></div>';
-    html += '<div class="pool-group"><div class="pool-label">📚 공부 리스트 <em>· 요일별로 배치</em></div><div class="pool">' +
-      (pool.study.length ? pool.study.map(poolTile).join('') : '<span class="empty">없음</span>') + '</div></div>';
-    html += '<div class="pool-group"><div class="pool-label">🤝 엄마와의 약속 <em>· 요일별로 배치</em></div><div class="pool">' +
-      (pool.promise.length ? pool.promise.map(poolTile).join('') : '<span class="empty">없음</span>') + '</div></div>';
-    html += '</div>';
-    html += planQuickCardHTML(child);
-    html += '</div>';
+    var child = curChild();
+    var html = quickPlaceBarHTML(child);
     html += weekGridHTML(child);
+    html += fixedPlanCardHTML(child);
     $('#view-week').innerHTML = html;
   }
 
-  function planQuickCardHTML(child) {
+  /* ---- 한 줄 빠른 배치 바 ---- */
+  function placeDayLabel(v) {
+    if (v === 'weekday') return '평일';
+    if (v === 'weekend') return '주말';
+    if (v === 'alldays') return '월~일';
+    return DL[v] ? DL[v] + '요일' : '';
+  }
+  function quickPlaceBarHTML(child) {
+    var s = st();
+    var study = s.items.filter(function (it) { return it.kind === 'study'; });
+    var promise = s.items.filter(function (it) { return it.kind === 'promise'; });
+    function opt(it) {
+      return '<option value="' + it.id + '">' + esc((it.emoji ? it.emoji + ' ' : '') + it.name) +
+        (it.minutes ? ' · ' + it.minutes + '분' : '') + '</option>';
+    }
+    var opts = '';
+    if (study.length) opts += '<optgroup label="📚 공부">' + study.map(opt).join('') + '</optgroup>';
+    if (promise.length) opts += '<optgroup label="🤝 엄마와의 약속">' + promise.map(opt).join('') + '</optgroup>';
+    var dayOpts = D.map(function (d) { return '<option value="' + d + '">' + DL[d] + '요일</option>'; }).join('');
+    return '<div class="card placebar"><div class="pb-row">' +
+      '<select id="pbItem" class="pb-item" aria-label="공부·약속 선택">' +
+        '<option value="">' + (opts ? '공부 / 약속 선택 ▾' : '항목 없음 · ＋ 항목') + '</option>' + opts + '</select>' +
+      '<select id="pbDay" class="pb-day" aria-label="요일 선택">' +
+        '<option value="">요일 ▾</option>' + dayOpts +
+        '<option value="weekday">평일 전체</option><option value="weekend">주말 전체</option><option value="alldays">월~일 전체</option>' +
+      '</select>' +
+      '<button type="button" class="btn primary pb-go" data-act="quickPlace">배치</button>' +
+      '<button type="button" class="btn pb-manage" data-act="manageItems">' +
+        '<span class="pb-mg-lg">항목 관리 / + 새 항목</span><span class="pb-mg-sm">＋ 항목</span></button>' +
+      '</div></div>';
+  }
+  function quickPlace() {
+    var itEl = $('#pbItem'), dayEl = $('#pbDay');
+    if (!itEl || !dayEl) return;
+    var it = itemById(itEl.value);
+    if (!it) { toast('배치할 공부·약속을 먼저 골라 주세요'); return; }
+    var v = dayEl.value;
+    if (!v) { toast('요일을 골라 주세요'); return; }
+    var days = v === 'weekday' ? ['mon', 'tue', 'wed', 'thu', 'fri']
+      : v === 'weekend' ? ['sat', 'sun']
+      : v === 'alldays' ? D.slice() : [v];
+    var sched = st().schedule[curChild()] || (st().schedule[curChild()] = {});
+    var added = 0;
+    days.forEach(function (d) {
+      var arr = sched[d] || (sched[d] = []);
+      if (arr.indexOf(it.id) < 0) { arr.push(it.id); added++; }
+    });
+    var label = placeDayLabel(v);
+    if (!added) { toast(it.name + '은(는) 이미 ' + label + '에 있어요'); return; }
+    save();
+    toast(it.name + ' → ' + label + ' 배치' + (added < days.length ? ' (' + added + '일)' : ''));
+  }
+
+  /* ---- 항목 관리 모달 ---- */
+  function openManage() { ui.manageOpen = true; renderManage(); }
+  function renderManage() {
+    var s = st(), child = curChild(), ch = childOf(child);
+    var sched = s.schedule[child] || {};
+    function row(it) {
+      var days = D.filter(function (d) { return (sched[d] || []).indexOf(it.id) >= 0; });
+      var dayTxt = it.kind === 'routine' ? '매일 자동' : (days.length ? days.map(function (d) { return DL[d]; }).join('·') : '배치 없음');
+      return '<div class="mg-row" style="--c:' + it.color + '">' +
+        '<span class="tile-dot" aria-hidden="true"></span>' +
+        '<span class="mg-e">' + esc(it.emoji || '') + '</span>' +
+        '<span class="mg-n">' + esc(it.name) + '</span>' +
+        (it.minutes ? '<span class="mg-d">' + it.minutes + '분</span>' : '') +
+        '<span class="mg-days' + (days.length || it.kind === 'routine' ? '' : ' none') + '">' + dayTxt + '</span>' +
+        (it.kind === 'routine' ? '' : '<button type="button" class="mg-b" data-act="days" data-id="' + it.id + '">요일</button>') +
+        '<button type="button" class="mg-b" data-act="editItem" data-id="' + it.id + '" aria-label="수정">✎</button>' +
+        '<button type="button" class="mg-b bad" data-act="delItem" data-id="' + it.id + '" aria-label="삭제">×</button></div>';
+    }
+    function group(kind, title) {
+      var list = s.items.filter(function (it) { return it.kind === kind; });
+      return '<div class="mg-group"><div class="mg-gh">' + title + '<em>' + list.length + '개</em></div>' +
+        '<div class="mg-list">' + (list.length ? list.map(row).join('') : '<div class="empty">아직 없어요</div>') + '</div></div>';
+    }
+    openModal('<h2>🧩 항목 관리</h2><div class="sh-sub">' + esc(ch.emoji + ' ' + ch.name) + ' 시간표에 쓰는 공부·약속·생활 루틴을 여기서 추가·수정·삭제해요.<br>‘요일’을 누르면 그 항목을 넣을 요일을 고를 수 있어요.</div>' +
+      group('study', '📚 공부') + group('promise', '🤝 엄마와의 약속') + group('routine', '🌅 생활 루틴') +
+      '<div class="mg-foot">' +
+        '<button type="button" class="btn good" data-act="addItem">＋ 공부</button>' +
+        '<button type="button" class="btn" data-act="addPromise">＋ 약속</button>' +
+        '<button type="button" class="btn" data-act="addRoutine">＋ 생활 루틴</button>' +
+        '<button type="button" class="btn primary" data-act="closeModal">닫기</button></div>',
+      { wide: true, kind: 'manage' });
+  }
+
+  /* ---- 하교·고정 일정 (기본 접힘) ---- */
+  function fixedPlanCardHTML(child) {
+    var open = !!ui.fixedOpen;
+    var outs = [], blocks = 0;
+    D.forEach(function (dk) {
+      var p = planFor(child, dk);
+      if (outs.indexOf(p.out) < 0) outs.push(p.out);
+      blocks += p.blocks.length;
+    });
+    var summ = '하교 ' + (outs.length === 1 ? outs[0] : '요일별') + ' · 고정 일정 ' + blocks + '개';
     var rows = D.map(function (dk) {
       var p = planFor(child, dk);
       var blockNames = p.blocks.map(function (b) { return esc(b.name); }).join(', ');
@@ -730,9 +794,13 @@
         '<span class="dpb" title="' + esc(p.blocks.map(function (b) { return b.name + ' ' + b.start + '~' + b.end; }).join(', ')) + '">' + (blockNames || '고정 일정 없음') + '</span>' +
         '<button class="mini" data-act="planDay" data-day="' + dk + '">일정</button></div>';
     }).join('');
-    return '<div class="card"><div class="card-head"><h3>🏫 하교 · 고정 일정</h3><span class="sub">비는 시간 자동 계산</span></div>' +
-      '<div class="dayplanrows">' + rows + '</div>' +
-      '<div class="momnote" style="margin-top:6px">하교 → 취침 사이에서 학원·태권도 시간을 뺀 나머지가 ‘빈 시간’이에요.</div></div>';
+    return '<div class="card fixedcard">' +
+      '<button type="button" class="fx-toggle" data-act="toggleFixed" aria-expanded="' + open + '" aria-controls="fxBody">' +
+        '<span class="fx-title">🏫 하교 · 고정 일정</span><span class="fx-sum">' + esc(summ) + '</span>' +
+        '<span class="fx-cue">' + (open ? '접기' : '펼치기') + '</span></button>' +
+      '<div class="fx-body" id="fxBody"' + (open ? '' : ' hidden') + '>' +
+        '<div class="dayplanrows">' + rows + '</div>' +
+        '<div class="momnote" style="margin-top:6px">하교 → 취침 사이에서 학원·태권도 시간을 뺀 나머지가 ‘빈 시간’이에요.</div></div></div>';
   }
 
   function weekGridHTML(child) {
@@ -754,13 +822,13 @@
         var w = (sg.end - sg.start) / span * 100;
         return '<div class="dp-seg ' + sg.type + '" style="width:' + Math.max(0, Math.min(100, w)) + '%"></div>';
       }).join('');
-      var chips = ids.length ? ids.map(function (id) { return dayChip(itemById(id), dk); }).join('') : '<div class="day-empty">카드를 끌어다<br>놓아 보세요</div>';
+      var chips = ids.length ? ids.map(function (id) { return dayChip(itemById(id), dk); }).join('') : '<div class="day-empty"><span class="de-lg">카드를 끌어다<br>놓아 보세요</span><span class="de-sm">아직 비었어요</span></div>';
       return '<div class="daycol' + (dk === todayKey ? ' today' : '') + '" data-drop="' + dk + '" data-day="' + dk + '">' +
         '<div class="dayhead"><span class="dow">' + DL[dk] + '</span><span style="font-size:10px;color:#B7AD9C;font-weight:800">' + U.parseYmd(date).getDate() + '</span><span class="dcount">' + ids.length + '</span></div>' +
         '<div class="dayplan-mini" title="초록=빈 시간, 보라=고정 일정">' + mini + '</div>' +
         '<div class="daymeta' + (over ? ' over' : '') + '">빈 <b>' + free + '분</b> · 공부 <b>' + mins + '분</b>' + (over ? ' ⚠️초과' : '') + '</div>' +
         '<div class="daychips">' + chips + '</div>' +
-        '<button class="dayadd" data-act="dayAdd" data-day="' + dk + '">+ 추가</button></div>';
+        '<button class="dayadd" data-act="dayAdd" data-day="' + dk + '" aria-label="' + DL[dk] + '요일 항목 추가"><span class="da-lg">+ 추가</span><span class="da-sm">＋</span></button></div>';
     }).join('');
     return '<div class="card weekcard"><div class="card-head"><h3>🗓️ ' + esc(childOf(child).name) + ' 주간 시간표</h3>' +
       '<div class="weeksum"><span>이번 주 빈 시간 <b>' + weekFree + '분</b></span><span>공부 배치 <b>' + weekStudy + '분</b></span></div></div>' +
@@ -1202,11 +1270,16 @@
     root.dataset.lock = (opts && opts.lock) ? '1' : '';
     root.classList.add('open');
     document.body.style.overflow = 'hidden';
+    ui.modalKind = (opts && opts.kind) || 'plain';
   }
   function closeModal() {
     var root = $('#modalRoot');
     if (!root) return;
     if (root.dataset.lock === '1' && alarm.active) return;
+    /* 항목 관리에서 열린 하위 창을 닫으면 관리 목록으로 돌아간다 */
+    if (ui.manageOpen && ui.modalKind !== 'manage') { renderManage(); return; }
+    ui.manageOpen = false;
+    ui.modalKind = '';
     root.dataset.lock = '';
     root.classList.remove('open');
     root.innerHTML = '';
@@ -1324,9 +1397,10 @@
       var ni = { id: U.uid('it') };
       for (var k2 in data) ni[k2] = data[k2];
       st().items.push(ni);
-      if (kind !== 'routine') toast('저장했어요. 주간 시간표에서 요일을 골라 주세요');
+      if (kind !== 'routine' && !ui.manageOpen) toast('저장했어요. 요일을 골라 시간표에 넣어 보세요');
     }
-    closeModal(); save();
+    save();
+    if (ui.manageOpen) renderManage(); else closeModal();
   }
   function deleteItem(id) {
     var it = itemById(id);
@@ -1340,7 +1414,8 @@
           if (i >= 0) arr.splice(i, 1);
         });
       });
-      closeModal(); save(); toast('삭제했어요');
+      save(); toast('삭제했어요');
+      if (ui.manageOpen) renderManage(); else closeModal();
     }, true);
   }
   function openDayPicker(itemId) {
@@ -1370,7 +1445,8 @@
       if (!ui.dayPick.days[d] && i >= 0) arr.splice(i, 1);
     });
     var name = itemById(id) ? itemById(id).name : '';
-    closeModal(); save();
+    save();
+    if (ui.manageOpen) renderManage(); else closeModal();
     toast(name + ' 요일을 저장했어요');
   }
   function openPoolPicker(day) {
@@ -1498,6 +1574,10 @@
     if (it.kind === 'routine') { toast('생활 루틴은 매일 자동으로 표시돼요'); return; }
     var sched = st().schedule[curChild()];
     if (!sched[day]) sched[day] = [];
+    if (from && from !== 'pool' && from !== day && sched[day].indexOf(id) >= 0) {
+      toast(it.name + '은(는) 이미 ' + DL[day] + '요일에 있어요');
+      return;
+    }
     if (from && from !== 'pool' && from !== day) {
       var src = sched[from] || [];
       var i = src.indexOf(id);
@@ -1854,14 +1934,18 @@
       case 'addItem': openItemEditor(null, 'study'); break;
       case 'addPromise': openItemEditor(null, 'promise'); break;
       case 'addRoutine': openItemEditor(null, 'routine'); break;
+      case 'manageItems': openManage(); break;
+      case 'quickPlace': quickPlace(); break;
+      case 'toggleFixed':
+        ui.fixedOpen = !ui.fixedOpen;
+        el.setAttribute('aria-expanded', ui.fixedOpen ? 'true' : 'false');
+        var fxCard = el.closest ? el.closest('.fixedcard') : null;
+        var fxBody = fxCard ? fxCard.querySelector('.fx-body') : null;
+        if (fxBody) fxBody.hidden = !ui.fixedOpen;
+        var fxCue = fxCard ? fxCard.querySelector('.fx-cue') : null;
+        if (fxCue) fxCue.textContent = ui.fixedOpen ? '접기' : '펼치기';
+        break;
       case 'toggleRoutinePool':
-        ui.routineOpen = !ui.routineOpen;
-        var rp = $('[data-routine-pool]');
-        if (rp) rp.hidden = !ui.routineOpen;
-        el.classList.toggle('open', ui.routineOpen);
-        el.setAttribute('aria-expanded', ui.routineOpen ? 'true' : 'false');
-        var cue = el.querySelector('.pt-cue');
-        if (cue) cue.textContent = ui.routineOpen ? '접기' : '펼치기';
         break;
       case 'editItem': openItemEditor(d.id); break;
       case 'delItem': deleteItem(d.id); break;

@@ -539,3 +539,85 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--good)}
 .foot{text-align:center;font-size:11px;color:var(--muted);font-weight:700;padding:14px 0 6px}
 .foot b{color:#8A6410;font-weight:900}
 .foot .handle{color:#B07A16}
+
+/* ============================================================
+   주간 시간표 슬림화 — 한 줄 빠른 배치 바 · 항목 관리 모달 · 접히는 고정 일정
+   ============================================================ */
+.placebar{margin-top:7px;padding:7px 8px}
+.pb-row{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
+.pb-row select{min-height:36px;padding:5px 8px;font-size:12.5px;border-radius:10px;font-weight:800}
+.pb-item{flex:1 1 auto;min-width:0;text-overflow:ellipsis}
+.pb-day{flex:0 0 auto;width:102px}
+.pb-go{flex:0 0 auto;min-height:36px;padding:6px 12px;font-size:12.5px}
+.pb-manage{flex:0 0 auto;min-height:36px;padding:6px 10px;font-size:12px;color:var(--ink2);white-space:nowrap}
+.pb-mg-sm{display:none}
+
+.fixedcard{margin-top:7px;padding:0}
+.fx-toggle{display:flex;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:10px 12px;text-align:left;border-radius:var(--r)}
+.fx-title{font-size:13.5px;font-weight:900;letter-spacing:-.3px;flex:none}
+.fx-sum{font-size:11px;color:var(--muted);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.fx-cue{margin-left:auto;flex:none;font-size:10.5px;font-weight:900;color:#0B7A5A;background:#E8F7F0;border-radius:99px;padding:2px 8px}
+.fx-body{padding:0 12px 11px}
+
+.mg-group{margin-bottom:10px}
+.mg-gh{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:900;color:var(--ink2);margin-bottom:5px;padding-bottom:4px;border-bottom:1px dashed var(--line)}
+.mg-gh em{margin-left:auto;font-style:normal;font-size:10.5px;font-weight:900;color:var(--muted)}
+.mg-list{display:flex;flex-direction:column;gap:4px}
+.mg-row{display:flex;align-items:center;gap:6px;background:#FCFAF6;border:1px solid var(--line2);border-radius:10px;padding:5px 7px;min-width:0}
+.mg-e{font-size:13.5px;flex:none;width:18px;text-align:center}
+.mg-n{flex:1;min-width:0;font-size:12.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mg-d{flex:none;font-size:10px;font-weight:900;color:#A2927A}
+.mg-days{flex:none;font-size:9.5px;font-weight:900;color:#0B7A5A;background:#E8F7F0;border-radius:99px;padding:1px 6px;max-width:102px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-days.none{color:var(--muted);background:#F1EADC}
+.mg-b{flex:none;border:1px solid var(--line);background:#fff;border-radius:8px;min-height:26px;padding:0 7px;font-size:10.5px;font-weight:900;color:var(--ink2)}
+.mg-b.bad{color:#B03A3A;border-color:#F5C2C2;background:#FEF5F5}
+.mg-foot{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;padding-top:10px;border-top:1px solid var(--line2)}
+.mg-foot .btn{flex:1 1 auto;font-size:12px}
+
+.de-sm,.da-sm{display:none}
+
+/* 모바일: 요일을 세로 줄로 — 가로 스크롤 없이 한 화면에 */
+@media (max-width:620px){
+  .pb-day{width:80px}
+  .pb-mg-lg{display:none}
+  .pb-mg-sm{display:inline}
+  .pb-go{padding:6px 10px}
+  .weekgrid{grid-template-columns:1fr;gap:5px;overflow:visible;padding-bottom:0}
+  .daycol{display:grid;grid-template-columns:50px minmax(0,1fr) 32px;grid-template-areas:"head chips add" "meta chips add";column-gap:6px;row-gap:1px;align-items:center;padding:4px 6px}
+  .daycol.today{border-color:#F7C98F}
+  .dayhead{grid-area:head;margin:0}
+  .dayhead .dcount{display:none}
+  .dayplan-mini{display:none}
+  .daymeta{grid-area:meta;margin:0;gap:2px}
+  .daychips{grid-area:chips;flex-direction:row;flex-wrap:wrap;gap:3px;min-height:0}
+  .daychips .chip{font-size:10px;padding:2px 4px;gap:3px;border-radius:8px;max-width:calc(50% - 2px)}
+  .daychips .chip .chip-b{width:15px;height:15px;font-size:9.5px;border-radius:6px}
+  .dayadd{grid-area:add;align-self:center;margin:0;height:26px;min-height:26px;width:100%;padding:0;font-size:12px}
+  .da-lg{display:none}
+  .da-sm{display:inline}
+  .day-empty{padding:4px 2px;font-size:10px;text-align:left}
+  .de-lg{display:none}
+  .de-sm{display:inline}
+  .weekcard .card-head{flex-wrap:wrap;gap:4px}
+  .weeksum{font-size:10.5px;gap:6px}
+}
+@media (min-width:621px) and (max-width:860px){
+  .weekgrid{grid-template-columns:repeat(7,minmax(0,1fr));overflow:visible}
+  .daychips .chip{font-size:10.5px;padding:3px 4px}
+}
+
+/* 와이드(태블릿 가로): 시간표를 크게 */
+@media (min-width:1000px){
+  .pb-item{max-width:430px}
+  .pb-manage{margin-left:auto}
+  .weekgrid{gap:8px}
+  .daycol{padding:8px;border-radius:14px}
+  .dayhead{font-size:13px;margin-bottom:4px}
+  .dayplan-mini{height:7px;margin:2px 0 5px}
+  .daymeta{font-size:10.5px;margin-bottom:6px}
+  .daychips{gap:6px;min-height:252px}
+  .daychips .chip{font-size:12px;padding:6px 6px;border-radius:10px;gap:6px;min-height:34px}
+  .daychips .chip .chip-b{width:20px;height:20px;font-size:11px}
+  .dayadd{min-height:32px;font-size:12px}
+  .day-empty{font-size:11px;padding:12px 4px}
+}
