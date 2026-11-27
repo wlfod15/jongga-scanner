@@ -59,7 +59,8 @@
   var ui = {
     view: 'today', period: 'day', unlocked: false,
     pin: '', edit: null, dayPick: null, planDraft: null, drag: null,
-    confirmCb: null, poolDay: null, lastDay: U.today()
+    confirmCb: null, poolDay: null, lastDay: U.today(),
+    routineOpen: false, dragEnd: 0
   };
   var timers = {};      /* key -> {kind,mode,label,emoji,startedAt,targetSec,itemId,child} */
   var alarm = { active: false, cfg: null };
@@ -672,23 +673,21 @@
   }
 
   /* ---------------- WEEK VIEW ---------------- */
-  function poolChip(it, sched) {
-    var days = D.filter(function (d) { return (sched[d] || []).indexOf(it.id) >= 0; });
-    var daysLabel = days.length ? (days.length > 3 ? days.length + '일' : days.map(function (d) { return DL[d]; }).join('')) : '';
-    var buttons = it.kind === 'routine'
-      ? '<button class="chip-b" data-act="editItem" data-id="' + it.id + '" aria-label="수정">✎</button>'
-      : '<button class="chip-b" data-act="days" data-id="' + it.id + '" aria-label="요일 선택">＋</button><button class="chip-b" data-act="editItem" data-id="' + it.id + '" aria-label="수정">✎</button>';
-    return '<div class="chip" style="--c:' + it.color + '" data-drag-item="' + it.id + '" data-drag-from="pool"' + (it.kind === 'routine' ? ' data-nodrag="1"' : '') + '>' +
-      '<span class="chip-e">' + esc(it.emoji || '') + '</span>' +
-      '<span class="chip-n">' + esc(it.name) + '</span>' +
-      (it.minutes ? '<span class="chip-dur">' + it.minutes + '분</span>' : '') +
-      (daysLabel ? '<span class="chip-days">' + daysLabel + '</span>' : '') + buttons + '</div>';
+  function poolTile(it) {
+    var isRoutine = it.kind === 'routine';
+    var addBtn = isRoutine ? '' : '<button class="tile-b" data-act="days" data-id="' + it.id + '" aria-label="요일 선택">＋</button>';
+    return '<div class="tile" style="--c:' + it.color + '" data-act="editItem" data-id="' + it.id + '" role="button" tabindex="0" aria-label="' + esc(it.name) + ' 수정"' +
+      ' data-drag-item="' + it.id + '" data-drag-from="pool"' + (isRoutine ? ' data-nodrag="1"' : '') + '>' +
+      '<span class="tile-dot" aria-hidden="true"></span>' +
+      '<span class="tile-e">' + esc(it.emoji || '') + '</span>' +
+      '<span class="tile-n">' + esc(it.name) + '</span>' +
+      (it.minutes ? '<span class="tile-d">' + it.minutes + '분</span>' : '') + addBtn + '</div>';
   }
   function dayChip(it, dk) {
     return '<div class="chip" style="--c:' + it.color + '" data-drag-item="' + it.id + '" data-drag-from="' + dk + '">' +
       '<span class="chip-e">' + esc(it.emoji || '') + '</span>' +
       '<span class="chip-n">' + esc(it.name) + '</span>' +
-      (it.minutes ? '<span class="chip-dur">' + it.minutes + '분</span>' : '') +
+      (it.minutes ? '<span class="chip-d">' + it.minutes + '분</span>' : '') +
       '<button class="chip-b" data-act="unassign" data-id="' + it.id + '" data-day="' + dk + '" aria-label="빼기">×</button></div>';
   }
 
@@ -702,13 +701,18 @@
     html += '<div class="card poolcard">';
     html += '<div class="card-head"><h3>🧩 공부·루틴 리스트</h3>' +
       '<div class="mrow"><button class="mini" data-act="addRoutine">+ 생활 루틴</button><button class="mini good" data-act="addItem">+ 새 항목</button></div></div>';
-    html += '<div class="weektip" style="margin-bottom:8px">카드를 요일 칸으로 <b>끌어다 놓으면</b> 배치돼요. 태블릿에서는 카드의 <b>＋</b> 버튼으로 요일을 골라도 됩니다.</div>';
-    html += '<div class="pool-group"><div class="pool-label">🌅 생활 루틴 <em>· 매일 자동 표시</em></div><div class="pool">' +
-      (pool.routine.length ? pool.routine.map(function (it) { return poolChip(it, sched); }).join('') : '<span class="empty">없음</span>') + '</div></div>';
+    html += '<div class="weektip" style="margin-bottom:7px">카드를 요일 칸으로 끌어다 놓으면 배치돼요 · 카드를 누르면 수정</div>';
+    var rOpen = !!ui.routineOpen;
+    html += '<div class="pool-group">' +
+      '<button type="button" class="pool-toggle' + (rOpen ? ' open' : '') + '" data-act="toggleRoutinePool" aria-expanded="' + (rOpen ? 'true' : 'false') + '" aria-controls="poolRoutine">' +
+      '<span class="pt-title">🌅 생활 루틴</span><span class="pt-meta">' + pool.routine.length + '개 · 매일 자동</span>' +
+      '<span class="pt-cue">' + (rOpen ? '접기' : '펼치기') + '</span></button>' +
+      '<div class="pool" id="poolRoutine" data-routine-pool' + (rOpen ? '' : ' hidden') + '>' +
+      (pool.routine.length ? pool.routine.map(poolTile).join('') : '<span class="empty">없음</span>') + '</div></div>';
     html += '<div class="pool-group"><div class="pool-label">📚 공부 리스트 <em>· 요일별로 배치</em></div><div class="pool">' +
-      (pool.study.length ? pool.study.map(function (it) { return poolChip(it, sched); }).join('') : '<span class="empty">없음</span>') + '</div></div>';
+      (pool.study.length ? pool.study.map(poolTile).join('') : '<span class="empty">없음</span>') + '</div></div>';
     html += '<div class="pool-group"><div class="pool-label">🤝 엄마와의 약속 <em>· 요일별로 배치</em></div><div class="pool">' +
-      (pool.promise.length ? pool.promise.map(function (it) { return poolChip(it, sched); }).join('') : '<span class="empty">없음</span>') + '</div></div>';
+      (pool.promise.length ? pool.promise.map(poolTile).join('') : '<span class="empty">없음</span>') + '</div></div>';
     html += '</div>';
     html += planQuickCardHTML(child);
     html += '</div>';
@@ -761,7 +765,7 @@
     return '<div class="card weekcard"><div class="card-head"><h3>🗓️ ' + esc(childOf(child).name) + ' 주간 시간표</h3>' +
       '<div class="weeksum"><span>이번 주 빈 시간 <b>' + weekFree + '분</b></span><span>공부 배치 <b>' + weekStudy + '분</b></span></div></div>' +
       '<div class="weekgrid">' + cols + '</div>' +
-      '<div class="weektip" style="margin-top:6px">칩을 다른 요일로 끌어 옮길 수 있어요 · <b>×</b> 그 요일에서 빼기 · <b>✎</b> 항목 수정</div></div>';
+      '<div class="weektip" style="margin-top:6px">카드를 다른 요일로 끌어 옮길 수 있어요 · <b>×</b> 그 요일에서 빼기</div></div>';
   }
 
   /* ---------------- MOM VIEW ---------------- */
@@ -1380,9 +1384,9 @@
     openModal('<h2>' + DL[day] + '요일 추가</h2><div class="sh-sub">' + esc(childOf(curChild()).name) + ' ' + DL[day] + '요일 시간표에 넣을 항목을 눌러 주세요.</div>' +
       '<div class="pool" style="gap:6px">' + (list.length ? list.map(function (it) {
         var on = ids.indexOf(it.id) >= 0;
-        return '<button class="chip" style="--c:' + it.color + ';' + (on ? 'opacity:.5' : '') + '" data-act="poolAdd" data-id="' + it.id + '" data-day="' + day + '">' +
-          '<span class="chip-e">' + esc(it.emoji || '') + '</span><span class="chip-n">' + esc(it.name) + '</span>' +
-          (it.minutes ? '<span class="chip-dur">' + it.minutes + '분</span>' : '') + (on ? '<span class="chip-days">추가됨</span>' : '') + '</button>';
+        return '<button class="tile" style="--c:' + it.color + ';' + (on ? 'opacity:.5' : '') + '" data-act="poolAdd" data-id="' + it.id + '" data-day="' + day + '">' +
+          '<span class="tile-dot" aria-hidden="true"></span><span class="tile-e">' + esc(it.emoji || '') + '</span><span class="tile-n">' + esc(it.name) + '</span>' +
+          (it.minutes ? '<span class="tile-d">' + it.minutes + '분</span>' : '') + (on ? '<span class="tile-tag">추가됨</span>' : '') + '</button>';
       }).join('') : '<div class="empty">항목이 없어요.</div>') + '</div>' +
       '<div class="sheet-foot"><button class="btn primary" data-act="closeModal">완료</button></div>');
   }
@@ -1438,7 +1442,7 @@
   /* ---------------- drag & drop ---------------- */
   function onPointerDown(e) {
     if (e.button !== undefined && e.button > 0) return;
-    var chip = e.target.closest ? e.target.closest('.chip') : null;
+    var chip = e.target.closest ? e.target.closest('.chip, .tile') : null;
     if (!chip) return;
     if (chip.dataset.nodrag === '1') return;
     if (e.target.closest('button')) return;
@@ -1477,6 +1481,7 @@
     var g = ui.drag;
     if (!g) return;
     if (g.active) {
+      ui.dragEnd = Date.now();
       var target = document.elementFromPoint(e.clientX, e.clientY);
       var col = target && target.closest ? target.closest('[data-drop]') : null;
       if (col) assignToDay(g.id, col.dataset.drop, g.from);
@@ -1849,6 +1854,15 @@
       case 'addItem': openItemEditor(null, 'study'); break;
       case 'addPromise': openItemEditor(null, 'promise'); break;
       case 'addRoutine': openItemEditor(null, 'routine'); break;
+      case 'toggleRoutinePool':
+        ui.routineOpen = !ui.routineOpen;
+        var rp = $('[data-routine-pool]');
+        if (rp) rp.hidden = !ui.routineOpen;
+        el.classList.toggle('open', ui.routineOpen);
+        el.setAttribute('aria-expanded', ui.routineOpen ? 'true' : 'false');
+        var cue = el.querySelector('.pt-cue');
+        if (cue) cue.textContent = ui.routineOpen ? '접기' : '펼치기';
+        break;
       case 'editItem': openItemEditor(d.id); break;
       case 'delItem': deleteItem(d.id); break;
       case 'kindPick':
@@ -2082,6 +2096,7 @@
   /* ---------------- events ---------------- */
   function onClick(e) {
     Sound.unlock();
+    if (ui.dragEnd && Date.now() - ui.dragEnd < 500) return;
     var el = e.target.closest ? e.target.closest('[data-act]') : null;
     if (!el) return;
     handle(el.dataset.act, el);
