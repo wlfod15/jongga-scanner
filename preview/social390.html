@@ -4,10 +4,20 @@
 </head><body>
 <iframe id="a" src="/jongga-scanner/social/"></iframe>
 <iframe id="b" src="/jongga-scanner/social/"></iframe>
+<iframe id="c" src="/jongga-scanner/social/"></iframe>
 <script>
-document.getElementById('b').addEventListener('load', function(){
-  var w = document.getElementById('b').contentWindow;
-  w.scrollTo(0, 1720);
-});
+function prep(id, y, openDetail){
+  var f = document.getElementById(id);
+  f.addEventListener('load', function(){
+    var d = f.contentDocument, w = f.contentWindow;
+    if (openDetail){
+      var ds = d.querySelectorAll('details.ar');
+      if (ds.length) ds[0].open = true;
+    }
+    setTimeout(function(){ w.scrollTo(0, y); }, 80);
+  });
+}
+prep('b', 1600, false);
+prep('c', 3320, true);
 </script>
 </body></html>
