@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>preview</title>
+<style>body{margin:0;background:#cfc7bb;display:flex;gap:10px;padding:6px}iframe{width:390px;height:844px;border:0;background:#fff}</style>
+</head><body>
+<iframe id="a" src="/jongga-scanner/social/"></iframe>
+<iframe id="b" src="/jongga-scanner/social/"></iframe>
+<iframe id="c" src="/jongga-scanner/social/"></iframe>
+<script>
+function prep(id, y, openDetail){
+  var f = document.getElementById(id);
+  f.addEventListener('load', function(){
+    var d = f.contentDocument, w = f.contentWindow;
+    if (openDetail){
+      var ds = d.querySelectorAll('details.ar');
+      if (ds.length) ds[0].open = true;
+    }
+    setTimeout(function(){ w.scrollTo(0, y); }, 80);
+  });
+}
+prep('b', 1600, false);
+prep('c', 3830, true);
+</script>
+</body></html>
